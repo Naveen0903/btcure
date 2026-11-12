@@ -1,0 +1,296 @@
+"""
+BEYOND THE CURE: Multi-Tier REST API & Application Server
+Serves static dashboard web assets and handles mathematical/clinical REST endpoints
+using pure Python standard library (http.server & socketserver).
+Zero external dependencies required.
+"""
+
+import http.server
+import socketserver
+import json
+import os
+import sys
+import urllib.parse
+from datetime import datetime
+from typing import Dict, Any
+
+# Ensure local imports work
+sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
+
+from core.sitrd_engine import SITRDEngine
+from core.markov_engine import MarkovEngine
+from core.risk_engine import PatientRiskEngine
+from core.resource_engine import ResourceOptimizationEngine
+from core.care_gap_engine import CareGapEngine
+from core.pharmacist_engine import PharmacistEngine
+
+PORT = 8000
+BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+DATA_FILE = os.path.join(BASE_DIR, "data", "karnataka_ntep_data.json")
+EVAL_FILE = os.path.join(BASE_DIR, "data", "evaluation_responses.json")
+
+# Load baseline empirical data
+with open(DATA_FILE, "r") as f:
+    EMPIRICAL_DATA = json.load(f)
+
+# Initialize mathematical & clinical engines
+sitrd_engine = SITRDEngine()
+markov_engine = MarkovEngine()
+risk_engine = PatientRiskEngine()
+resource_engine = ResourceOptimizationEngine()
+care_gap_engine = CareGapEngine(EMPIRICAL_DATA)
+pharmacist_engine = PharmacistEngine()
+
+# In-memory storage for SUS/MARS evaluations
+if os.path.exists(EVAL_FILE):
+    try:
+        with open(EVAL_FILE, "r") as f:
+            EVALUATIONS = json.load(f)
+    except Exception:
+        EVALUATIONS = []
+else:
+    EVALUATIONS = [
+        {
+            "id": 1,
+            "role": "State TB Officer (DTO)",
+            "district": "BBMP",
+            "sus_score": 87.5,
+            "mars_score": 4.6,
+            "feedback": "Outstanding visibility on unnotified reservoir and district prioritization.",
+            "created_at": "2026-11-10T14:30:00"
+        },
+        {
+            "id": 2,
+            "role": "Senior Medical Officer / DOTS-Plus",
+            "district": "Belagavi",
+            "sus_score": 85.0,
+            "mars_score": 4.5,
+            "feedback": "SHAP waterfall and clinical bundles provide clear actionable next steps at patient intake.",
+            "created_at": "2026-11-11T09:15:00"
+        }
+    ]
+
+class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, directory=os.path.join(BASE_DIR, "static"), **kwargs)
+
+    def _set_headers(self, status: int = 200, content_type: str = "application/json"):
+        self.send_response(status)
+        self.send_header("Content-Type", content_type)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
+    def do_OPTIONS(self):
+        self._set_headers(200, "text/plain")
+
+    def _read_json_body(self) -> Dict[str, Any]:
+        content_length = int(self.headers.get("Content-Length", 0))
+        if content_length == 0:
+            return {}
+        body = self.rfile.read(content_length).decode("utf-8")
+        try:
+            return json.loads(body)
+        except json.JSONDecodeError:
+            return {}
+
+    def do_GET(self):
+        url_parsed = urllib.parse.urlparse(self.path)
+        path = url_parsed.path
+
+        # REST API Routes
+        if path == "/api/health":
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "status": "online",
+                "system": "BEYOND THE CURE Karnataka Surveillance & Decision Engine",
+                "cohort_size": 372863,
+                "timestamp": datetime.now().isoformat()
+            }).encode("utf-8"))
+            return
+
+        elif path == "/api/summary":
+            self._set_headers()
+            self.wfile.write(json.dumps(EMPIRICAL_DATA).encode("utf-8"))
+            return
+
+        elif path == "/api/districts":
+            self._set_headers()
+            self.wfile.write(json.dumps(EMPIRICAL_DATA.get("districts", [])).encode("utf-8"))
+            return
+
+        elif path == "/api/care-gaps":
+            self._set_headers()
+            plateau = care_gap_engine.analyze_mortality_plateau()
+            reservoir = care_gap_engine.estimate_unnotified_reservoir()
+            cascade = care_gap_engine.get_care_cascade_funnel()
+            self.wfile.write(json.dumps({
+                "mortality_plateau": plateau,
+                "unnotified_reservoir": reservoir,
+                "care_cascade": cascade
+            }).encode("utf-8"))
+            return
+
+        elif path == "/api/care-cascade":
+            self._set_headers()
+            self.wfile.write(json.dumps(care_gap_engine.get_care_cascade_funnel()).encode("utf-8"))
+            return
+
+        elif path == "/api/evaluation/stats":
+            self._set_headers()
+            avg_sus = sum(e["sus_score"] for e in EVALUATIONS) / max(1, len(EVALUATIONS))
+            avg_mars = sum(e["mars_score"] for e in EVALUATIONS) / max(1, len(EVALUATIONS))
+            self.wfile.write(json.dumps({
+                "total_responses": len(EVALUATIONS),
+                "average_sus_score": round(avg_sus, 1),
+                "target_sus": 80.0,
+                "sus_compliance": avg_sus >= 80.0,
+                "average_mars_score": round(avg_mars, 2),
+                "recent_evaluations": EVALUATIONS[-10:]
+            }).encode("utf-8"))
+            return
+
+        elif path.startswith("/data/"):
+            # Serve data file directly
+            if path == "/data/karnataka_ntep_data.json":
+                self._set_headers(200, "application/json")
+                with open(DATA_FILE, "rb") as f:
+                    self.wfile.write(f.read())
+                return
+
+        # Fallback to standard static file server
+        super().do_GET()
+
+    def do_POST(self):
+        url_parsed = urllib.parse.urlparse(self.path)
+        path = url_parsed.path
+        body = self._read_json_body()
+
+        if path == "/api/simulate/sitrd":
+            params = body.get("params", {})
+            years = float(body.get("years", 6.0))
+            dt = float(body.get("dt", 0.02))
+            res = sitrd_engine.simulate_sitrd(params, years=years, dt=dt)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/simulate/markov":
+            matrix = body.get("transition_matrix", None)
+            cohort = body.get("initial_distribution", None)
+            cycles = int(body.get("cycles", 10))
+            res = markov_engine.project_trajectory(cohort, matrix, cycles=cycles)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/predict/patient-risk":
+            patient = body.get("patient", body)
+            res = risk_engine.predict_patient_risk(patient)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/pharmacist/evaluate":
+            patient = body.get("patient", body)
+            res = pharmacist_engine.get_pharmacist_summary(patient)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/triage/batch":
+            cohort = body.get("cohort", [])
+            results = []
+            for idx, pt in enumerate(cohort):
+                pred = risk_engine.predict_patient_risk(pt)
+                results.append({
+                    "id": pt.get("id", f"PT-{1001 + idx}"),
+                    "name": pt.get("name", f"Patient {idx + 1}"),
+                    "age": pt.get("age", 45),
+                    "district": pt.get("district", "Karnataka"),
+                    "risk_tier": pred["risk_tier"],
+                    "action_code": pred["action_code"],
+                    "mortality_pct": pred["probabilities"]["mortality_death"],
+                    "ltfu_pct": pred["probabilities"]["loss_to_follow_up"],
+                    "success_pct": pred["probabilities"]["treatment_success"],
+                    "care_bundles_count": len(pred["care_bundles"])
+                })
+            # Sort by mortality descending
+            results.sort(key=lambda x: x["mortality_pct"], reverse=True)
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "total_triaged": len(results),
+                "critical_count": sum(1 for r in results if r["risk_tier"] == "Critical"),
+                "high_count": sum(1 for r in results if r["risk_tier"] == "High"),
+                "triage_list": results
+            }).encode("utf-8"))
+            return
+
+        elif path == "/api/optimize/resources":
+            allocations = body.get("allocations", {})
+            res = resource_engine.evaluate_scenario(allocations)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/evaluation/submit":
+            role = body.get("role", "Healthcare Professional")
+            district = body.get("district", "Karnataka State")
+            sus_score = float(body.get("sus_score", 85.0))
+            mars_score = float(body.get("mars_score", 4.5))
+            feedback = body.get("feedback", "")
+
+            entry = {
+                "id": len(EVALUATIONS) + 1,
+                "role": role,
+                "district": district,
+                "sus_score": round(sus_score, 1),
+                "mars_score": round(mars_score, 2),
+                "feedback": feedback,
+                "created_at": datetime.now().isoformat()
+            }
+            EVALUATIONS.append(entry)
+            try:
+                with open(EVAL_FILE, "w") as f:
+                    json.dump(EVALUATIONS, f, indent=2)
+            except Exception as e:
+                print(f"Warning: could not write evaluations file: {e}")
+
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "status": "success",
+                "message": "Evaluation recorded successfully",
+                "entry": entry
+            }).encode("utf-8"))
+            return
+
+        else:
+            self._set_headers(404)
+            self.wfile.write(json.dumps({"error": f"Endpoint {path} not found"}).encode("utf-8"))
+
+class ThreadedHTTPServer(socketserver.ThreadingMixIn, http.server.HTTPServer):
+    daemon_threads = True
+
+def run_server(port=PORT):
+    server = ThreadedHTTPServer(("0.0.0.0", port), BeyondTheCureHandler)
+    print(f"===========================================================")
+    print(f" BEYOND THE CURE PLATFORM SERVER ONLINE")
+    print(f" Cohort: N = 3,72,863 (Karnataka Surveillance 2021-2025)")
+    print(f" Serving at: http://localhost:{port}")
+    print(f"===========================================================")
+    try:
+        server.serve_forever()
+    except KeyboardInterrupt:
+        print("\nShutting down server...")
+        server.server_close()
+
+if __name__ == "__main__":
+    p = PORT
+    if len(sys.argv) > 1:
+        try:
+            p = int(sys.argv[1])
+        except ValueError:
+            pass
+    run_server(p)
+

@@ -1,0 +1,327 @@
+/**
+ * BEYOND THE CURE: High-Performance Canvas & SVG Interactive Visualization Engine
+ * Zero external library dependencies - fully native, retina-crisp, and interactive.
+ */
+
+window.Charts = {
+  // Utility for High DPI Canvas
+  _setupCanvas: function(canvas) {
+    const rect = canvas.getBoundingClientRect();
+    const dpr = window.devicePixelRatio || 1;
+    canvas.width = rect.width * dpr;
+    canvas.height = rect.height * dpr;
+    const ctx = canvas.getContext("2d");
+    ctx.scale(dpr, dpr);
+    return { ctx, width: rect.width, height: rect.height };
+  },
+
+  // 1. Multi-line SITRD Epidemic Trajectory Chart
+  renderTrajectoryChart: function(canvasId, timeline, series) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 65, padRight = 30, padTop = 30, padBottom = 45;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    // Palette
+    const colors = {
+      Infectious: "#ef4444",
+      Treated: "#38bdf8",
+      Recovered: "#22c55e",
+      CumulativeDeaths: "#f59e0b"
+    };
+
+    // Calculate Max Value (excluding Susceptible for scale visibility)
+    let maxVal = 10000;
+    Object.keys(colors).forEach(key => {
+      if (series[key]) {
+        const m = Math.max(...series[key]);
+        if (m > maxVal) maxVal = m;
+      }
+    });
+    maxVal = Math.ceil(maxVal * 1.15);
+
+    // Draw Grid Lines
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+    ctx.lineWidth = 1;
+    const ySteps = 5;
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "11px monospace";
+    ctx.textAlign = "right";
+
+    for (let i = 0; i <= ySteps; i++) {
+      const yVal = (maxVal / ySteps) * i;
+      const yPos = padTop + chartH - (i / ySteps) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, yPos);
+      ctx.lineTo(width - padRight, yPos);
+      ctx.stroke();
+      ctx.fillText(Math.round(yVal).toLocaleString(), padLeft - 8, yPos + 4);
+    }
+
+    // X Axis Labels
+    ctx.textAlign = "center";
+    const xSteps = timeline.length;
+    const stepInterval = Math.max(1, Math.floor(xSteps / 6));
+    for (let i = 0; i < xSteps; i += stepInterval) {
+      const xPos = padLeft + (i / (xSteps - 1)) * chartW;
+      ctx.fillText(timeline[i].toFixed(1), xPos, height - padBottom + 18);
+    }
+
+    // Draw Curves
+    Object.keys(colors).forEach(key => {
+      const data = series[key];
+      if (!data || data.length === 0) return;
+
+      ctx.strokeStyle = colors[key];
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      for (let i = 0; i < data.length; i++) {
+        const x = padLeft + (i / (data.length - 1)) * chartW;
+        const y = padTop + chartH - (data[i] / maxVal) * chartH;
+        if (i === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      ctx.stroke();
+
+      // End point circle
+      const lastX = padLeft + chartW;
+      const lastY = padTop + chartH - (data[data.length - 1] / maxVal) * chartH;
+      ctx.fillStyle = colors[key];
+      ctx.beginPath();
+      ctx.arc(lastX, lastY, 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Legend
+    let legendX = padLeft;
+    ctx.font = "11px sans-serif";
+    Object.keys(colors).forEach(key => {
+      ctx.fillStyle = colors[key];
+      ctx.fillRect(legendX, 10, 12, 12);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.textAlign = "left";
+      ctx.fillText(key, legendX + 16, 20);
+      legendX += ctx.measureText(key).width + 35;
+    });
+  },
+
+  // 2. Normalized Sensitivity Tornado Chart
+  renderSensitivityChart: function(canvasId, sensitivities) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 140, padRight = 60, padTop = 35, padBottom = 20;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    const data = [
+      { name: "Beta (Transmission)", val: sensitivities.Gamma_beta || 1.0, color: "#ef4444" },
+      { name: "Gamma (Notification)", val: sensitivities.Gamma_gamma || -0.67, color: "#38bdf8" },
+      { name: "Mu_i (Untreated Death)", val: sensitivities.Gamma_mu_i || -0.32, color: "#f59e0b" },
+      { name: "Mu (Natural Death)", val: sensitivities.Gamma_mu || -0.01, color: "#94a3b8" }
+    ];
+
+    const barH = 24;
+    const zeroX = padLeft + chartW * 0.6; // Center zero around 60%
+
+    // Draw Zero Axis
+    ctx.strokeStyle = "rgba(255, 255, 255, 0.3)";
+    ctx.lineWidth = 1.5;
+    ctx.beginPath();
+    ctx.moveTo(zeroX, padTop - 10);
+    ctx.lineTo(zeroX, height - padBottom);
+    ctx.stroke();
+
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "center";
+    ctx.fillText("0.0 (Zero Elasticity)", zeroX, padTop - 14);
+
+    data.forEach((item, idx) => {
+      const y = padTop + idx * (barH + 16);
+
+      // Label
+      ctx.fillStyle = "#e2e8f0";
+      ctx.font = "12px sans-serif";
+      ctx.textAlign = "right";
+      ctx.fillText(item.name, padLeft - 10, y + 16);
+
+      // Bar
+      const pxPerUnit = (chartW * 0.35);
+      const barW = item.val * pxPerUnit;
+      ctx.fillStyle = item.color;
+
+      if (barW >= 0) {
+        ctx.fillRect(zeroX, y, barW, barH);
+        ctx.textAlign = "left";
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillText(`+${item.val.toFixed(4)}`, zeroX + barW + 6, y + 16);
+      } else {
+        ctx.fillRect(zeroX + barW, y, -barW, barH);
+        ctx.textAlign = "right";
+        ctx.fillStyle = "#f8fafc";
+        ctx.fillText(`${item.val.toFixed(4)}`, zeroX + barW - 6, y + 16);
+      }
+    });
+  },
+
+  // 3. Counterfactual Lives Saved Comparison Chart
+  renderLivesSavedChart: function(canvasId, years, actualDeaths, cfDeaths, averted) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 60, padRight = 30, padTop = 30, padBottom = 40;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    const maxVal = 40000;
+    const numBars = years.length;
+    const groupW = chartW / numBars;
+    const barW = Math.min(32, groupW * 0.35);
+
+    // Draw Grid
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    ctx.textAlign = "right";
+    for (let i = 0; i <= 4; i++) {
+      const yVal = (maxVal / 4) * i;
+      const yPos = padTop + chartH - (i / 4) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, yPos);
+      ctx.lineTo(width - padRight, yPos);
+      ctx.stroke();
+      ctx.fillText(Math.round(yVal).toLocaleString(), padLeft - 6, yPos + 4);
+    }
+
+    years.forEach((yr, i) => {
+      const centerX = padLeft + i * groupW + groupW / 2;
+
+      // Untreated Counterfactual Bar (Red)
+      const cfH = (cfDeaths[i] / maxVal) * chartH;
+      ctx.fillStyle = "rgba(239, 68, 68, 0.4)";
+      ctx.fillRect(centerX - barW, padTop + chartH - cfH, barW, cfH);
+
+      // Actual Treated Bar (Sky Blue)
+      const actH = (actualDeaths[i] / maxVal) * chartH;
+      ctx.fillStyle = "#0284c7";
+      ctx.fillRect(centerX, padTop + chartH - actH, barW, actH);
+
+      // Label
+      ctx.fillStyle = "#cbd5e1";
+      ctx.font = "11px sans-serif";
+      ctx.textAlign = "center";
+      ctx.fillText(yr, centerX, height - padBottom + 18);
+
+      // Averted callout
+      ctx.fillStyle = "#4ade80";
+      ctx.font = "10px monospace";
+      ctx.fillText(`+${(averted[i] / 1000).toFixed(1)}k`, centerX, padTop + chartH - cfH - 6);
+    });
+
+    // Legend
+    ctx.textAlign = "left";
+    ctx.fillStyle = "rgba(239, 68, 68, 0.8)";
+    ctx.fillRect(padLeft, 10, 10, 10);
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText("Without Treatment (Counterfactual)", padLeft + 15, 18);
+
+    ctx.fillStyle = "#0284c7";
+    ctx.fillRect(padLeft + 220, 10, 10, 10);
+    ctx.fillStyle = "#cbd5e1";
+    ctx.fillText("NTEP Observed Deaths", padLeft + 235, 18);
+  },
+
+  // 4. SHAP Waterfall Attribution List
+  renderSHAPWaterfall: function(containerId, attributions) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    if (!attributions || attributions.length === 0) {
+      container.innerHTML = `<div class="text-gray-400 text-sm italic">No risk attribution factors loaded.</div>`;
+      return;
+    }
+
+    let html = `<div class="space-y-3">`;
+    attributions.forEach(item => {
+      const impact = item.impact_death || 0;
+      const isRisk = impact > 0;
+      const pctWidth = Math.min(100, Math.abs(impact) * 240);
+      const color = isRisk ? "bg-red-500" : "bg-emerald-500";
+      const textColor = isRisk ? "text-red-400" : "text-emerald-400";
+      const sign = isRisk ? "+" : "-";
+
+      html += `
+        <div class="bg-slate-900/60 p-2.5 rounded border border-slate-800">
+          <div class="flex justify-between items-center mb-1 text-xs">
+            <span class="font-medium text-slate-200">${item.factor}</span>
+            <span class="font-mono font-bold ${textColor}">${sign}${(Math.abs(impact) * 100).toFixed(1)}%</span>
+          </div>
+          <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden flex">
+            <div class="${color} h-full rounded-full transition-all duration-300" style="width: ${pctWidth}%"></div>
+          </div>
+          ${item.evidence ? `<p class="text-[11px] text-slate-400 mt-1.5 leading-tight">${item.evidence}</p>` : ''}
+        </div>
+      `;
+    });
+    html += `</div>`;
+    container.innerHTML = html;
+  },
+
+  // 5. 31-District Interactive Geospatial Hotspot Grid
+  renderDistrictGrid: function(containerId, districts, onSelectDistrict) {
+    const container = document.getElementById(containerId);
+    if (!container) return;
+
+    let html = `<div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-3">`;
+
+    districts.forEach(d => {
+      let badgeClass = "badge-low";
+      if (d.risk_tier === "Critical") badgeClass = "badge-critical pulse-critical";
+      else if (d.risk_tier === "High") badgeClass = "badge-high";
+      else if (d.risk_tier === "Moderate") badgeClass = "badge-moderate";
+
+      html += `
+        <div class="district-card glass-card p-3.5 flex flex-col justify-between" onclick="window.onDistrictClick('${d.id}')">
+          <div>
+            <div class="flex justify-between items-start mb-1.5">
+              <h4 class="font-semibold text-slate-100 text-sm">${d.name}</h4>
+              <span class="text-[10px] px-2 py-0.5 rounded font-mono ${badgeClass}">${d.risk_tier}</span>
+            </div>
+            <div class="text-xs text-slate-400 mb-2">${d.zone} Zone • Pop ${(d.pop / 100000).toFixed(1)}L</div>
+          </div>
+          <div class="grid grid-cols-2 gap-2 text-xs pt-2 border-t border-slate-800/80">
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase">Annual Notif</div>
+              <div class="font-mono font-bold text-sky-400">${d.notifications.toLocaleString()}</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase">TSR Rate</div>
+              <div class="font-mono font-bold ${d.tsr >= 90 ? 'text-emerald-400' : 'text-amber-400'}">${d.tsr}%</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase">Mortality /100k</div>
+              <div class="font-mono font-bold ${d.mortality_rate >= 6.5 ? 'text-red-400' : 'text-slate-300'}">${d.mortality_rate}</div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase">DM Co-morb</div>
+              <div class="font-mono font-bold text-slate-300">${d.dm_pct}%</div>
+            </div>
+          </div>
+        </div>
+      `;
+    });
+
+    html += `</div>`;
+    container.innerHTML = html;
+  }
+};
+

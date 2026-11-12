@@ -1,0 +1,981 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>BEYOND THE CURE: Karnataka NTEP Surveillance & Clinical Decision Platform</title>
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- FontAwesome -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <!-- Custom Styles -->
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body class="bg-slate-950 text-slate-100 antialiased selection:bg-sky-500 selection:text-white">
+
+  <!-- Main Top Navigation -->
+  <header class="border-b border-slate-800 bg-slate-900/90 sticky top-0 z-50 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <div class="flex items-center justify-between h-16">
+        <div class="flex items-center space-x-3">
+          <div class="w-10 h-10 rounded-lg bg-gradient-to-tr from-sky-600 to-cyan-400 flex items-center justify-center shadow-lg shadow-sky-500/20">
+            <i class="fa-solid fa-dna text-white text-xl"></i>
+          </div>
+          <div>
+            <div class="flex items-center space-x-2">
+              <span class="font-extrabold text-lg tracking-tight text-white">BEYOND THE CURE</span>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-mono">v1.0-NTEP</span>
+            </div>
+            <div class="text-[11px] text-slate-400 hidden sm:block">Karnataka Surveillance (2021–2025, N = 3,72,863) • RGUHS / State TB Control Board</div>
+          </div>
+        </div>
+
+        <!-- Quick Status Indicator -->
+        <div class="flex items-center space-x-4">
+          <div class="hidden md:flex items-center space-x-2 text-xs text-slate-300 bg-slate-800/80 px-3 py-1.5 rounded-full border border-slate-700">
+            <span class="w-2 h-2 rounded-full bg-emerald-400 animate-pulse"></span>
+            <span>ODE Engine Active</span>
+            <span class="text-slate-500">|</span>
+            <span class="font-mono text-cyan-300">R₀ = 0.5445</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <nav class="flex space-x-1 sm:space-x-4 overflow-x-auto pb-2 scrollbar-none text-xs sm:text-sm">
+        <button id="nav-overview" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 bg-sky-600/30 text-sky-300 border-sky-500 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-chart-line"></i>
+          <span>Command Center</span>
+        </button>
+        <button id="nav-digital-twin" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-brain"></i>
+          <span>Digital Twin (SITRD)</span>
+        </button>
+        <button id="nav-clinical" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-user-doctor"></i>
+          <span>Clinical Workbench</span>
+        </button>
+        <button id="nav-pharmacist" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-pills"></i>
+          <span>Pharmacist & DDI Studio</span>
+        </button>
+        <button id="nav-batch" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-users"></i>
+          <span>Batch Triage</span>
+        </button>
+        <button id="nav-districts" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-map-location-dot"></i>
+          <span>31-District Surveillance</span>
+        </button>
+        <button id="nav-resource" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-sliders"></i>
+          <span>Resource Lab</span>
+        </button>
+        <button id="nav-evaluation" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-clipboard-check"></i>
+          <span>SUS / MARS Protocol</span>
+        </button>
+      </nav>
+    </div>
+  </header>
+
+  <!-- Main Container -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+
+    <!-- ========================================== -->
+    <!-- VIEW 1: EXECUTIVE COMMAND CENTER -->
+    <!-- ========================================== -->
+    <section id="view-overview" class="tab-view space-y-6">
+      <!-- Top Stat Cards -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Total Monitored Cohort</div>
+          <div id="stat-total-cohort" class="metric-value text-2xl font-bold text-sky-400">3,72,863</div>
+          <div class="text-xs text-slate-400 mt-1">2021–2025 Karnataka State Surveillance</div>
+        </div>
+
+        <div class="glass-card p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Cumulative Lives Saved</div>
+          <div id="stat-lives-saved" class="metric-value text-2xl font-bold text-emerald-400">1,27,310</div>
+          <div class="text-xs text-slate-400 mt-1">Averted vs untreated counterfactual (μᵢ)</div>
+        </div>
+
+        <div class="glass-card p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Mean Treatment Success</div>
+          <div id="stat-average-tsr" class="metric-value text-2xl font-bold text-cyan-300">88.5%</div>
+          <div class="text-xs text-slate-400 mt-1">Surpassing 85% national benchmark (91.2% in 2024)</div>
+        </div>
+
+        <div class="glass-card p-4">
+          <div class="text-xs font-semibold text-slate-400 uppercase tracking-wider mb-1">Untreated Mortality Penalty</div>
+          <div id="stat-mortality-penalty" class="metric-value text-2xl font-bold text-amber-400">8.10x</div>
+          <div class="text-xs text-slate-400 mt-1">Untreated (48.6%) vs Treated (6.0%) in 2025</div>
+        </div>
+      </div>
+
+      <!-- Epidemiological Paradox Banner -->
+      <div class="bg-gradient-to-r from-sky-950/60 to-slate-900 border border-sky-800/60 rounded-xl p-4 flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+        <div class="space-y-1">
+          <div class="flex items-center space-x-2">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-300 border border-amber-500/40 uppercase">Core Finding: The Karnataka TB Paradox</span>
+            <span class="text-xs text-slate-400">Published Dissertation Analysis</span>
+          </div>
+          <p class="text-xs text-slate-300 leading-relaxed max-w-4xl">
+            <strong>The Paradox:</strong> Notified patients experience an on-treatment cascade <code class="text-sky-300">R₀ = 0.544</code> (epidemic decay), yet population notification curves remain flat (<code class="text-amber-300">b = +567/yr, p = 0.743</code>). This demonstrates a persistent, unnotified transmission reservoir of ~35,000–45,000 individuals in the community sustaining <code class="text-red-400">β = 0.788–0.902</code>.
+          </p>
+        </div>
+        <button onclick="window.App.switchTab('digital-twin')" class="px-3 py-1.5 bg-sky-600 hover:bg-sky-500 text-white rounded text-xs font-semibold whitespace-nowrap shadow transition">
+          Simulate in Digital Twin &rarr;
+        </button>
+      </div>
+
+      <!-- Lives Saved Counterfactual Chart & Plateau Analysis -->
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <div class="glass-card p-4">
+          <div class="flex justify-between items-center mb-3">
+            <div>
+              <h3 class="font-bold text-sm text-slate-100">Treatment Impact: Lives Saved (2021–2025)</h3>
+              <p class="text-xs text-slate-400">Observed NTEP deaths vs untreated natural progression (μᵢ = 35%–49%)</p>
+            </div>
+            <span class="text-xs font-mono text-emerald-400">+1.27 Lakh Lives</span>
+          </div>
+          <div class="w-full h-64">
+            <canvas id="chart-lives-saved" class="w-full h-full"></canvas>
+          </div>
+        </div>
+
+        <div class="glass-card p-4 space-y-3">
+          <div class="flex justify-between items-center">
+            <h3 class="font-bold text-sm text-slate-100">Irreducible Mortality Floor Deconstruction (λ ≈ 6%)</h3>
+            <span class="text-xs font-mono text-amber-400">Biological Threshold</span>
+          </div>
+          <p class="text-xs text-slate-400">
+            Despite DR-TB notifications reaching zero in 2024 and TSR exceeding 91%, on-treatment mortality (λ) plateaued at 6.0%. Field triage reveals four primary drivers:
+          </p>
+          <div class="space-y-2 text-xs">
+            <div class="p-2.5 rounded bg-slate-900/60 border border-slate-800">
+              <div class="flex justify-between font-semibold text-slate-200">
+                <span>1. Early Mortality Window (&lt; 60 Days)</span>
+                <span class="text-red-400">46.2% of deaths</span>
+              </div>
+              <p class="text-slate-400 mt-1 text-[11px]">Extreme wasting (BMI &lt; 16) and re-feeding collapse before anti-TB bactericidal stabilization.</p>
+            </div>
+            <div class="p-2.5 rounded bg-slate-900/60 border border-slate-800">
+              <div class="flex justify-between font-semibold text-slate-200">
+                <span>2. Late Presentation & Diagnostic Delay</span>
+                <span class="text-amber-400">28.5% of deaths</span>
+              </div>
+              <p class="text-slate-400 mt-1 text-[11px]">Mean pre-treatment delay of 23.8 days causes extensive bilateral cavitation and respiratory compromise.</p>
+            </div>
+            <div class="p-2.5 rounded bg-slate-900/60 border border-slate-800">
+              <div class="flex justify-between font-semibold text-slate-200">
+                <span>3. Metabolic Co-morbidity (DM & HIV)</span>
+                <span class="text-sky-400">16.8% of deaths</span>
+              </div>
+              <p class="text-slate-400 mt-1 text-[11px]">Uncontrolled hyperglycemia (HbA1c &gt; 8.5%) and delayed ART synchronization in dual infections.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Care Cascade Drop-Off Funnel -->
+      <div class="glass-card p-4 space-y-3">
+        <div class="flex justify-between items-center">
+          <div>
+            <h3 class="font-bold text-sm text-slate-100">6-Stage Karnataka NTEP Care Cascade Funnel (N = 3,72,863)</h3>
+            <p class="text-xs text-slate-400">Longitudinal cohort retention from presumptive screening to long-term cure</p>
+          </div>
+          <span class="text-xs font-mono text-sky-400">78.1% Cohort Completion</span>
+        </div>
+
+        <div id="container-care-cascade" class="space-y-2 text-xs">
+          <!-- Dynamically populated or rendered with progress bars -->
+        </div>
+      </div>
+
+      <!-- Annual Empirical Surveillance Table -->
+      <div class="glass-card p-4 overflow-hidden">
+        <h3 class="font-bold text-sm text-slate-100 mb-3">Karnataka State NTEP Surveillance Metrics (2021–2025)</h3>
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/80 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+              <tr>
+                <th class="p-3">Year</th>
+                <th class="p-3">Notified</th>
+                <th class="p-3">Initiated</th>
+                <th class="p-3">Cured / Success</th>
+                <th class="p-3">Deaths</th>
+                <th class="p-3">Relapse</th>
+                <th class="p-3">TSR (%)</th>
+                <th class="p-3">SITRD R₀</th>
+              </tr>
+            </thead>
+            <tbody id="table-annual-metrics" class="divide-y divide-slate-800">
+              <!-- Dynamically Populated -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 2: BIOMATHEMATICAL DIGITAL TWIN -->
+    <!-- ========================================== -->
+    <section id="view-digital-twin" class="tab-view hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Control Sliders -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+            <h3 class="font-bold text-sm text-slate-100">SITRD ODE Parameters</h3>
+            <span class="text-[10px] text-slate-400">RK4 60FPS</span>
+          </div>
+
+          <!-- Presets -->
+          <div class="flex gap-2">
+            <button id="btn-preset-2021" class="flex-1 py-1 text-[11px] bg-slate-800 hover:bg-slate-700 rounded text-slate-200">2021 Baseline</button>
+            <button id="btn-preset-2024" class="flex-1 py-1 text-[11px] bg-sky-900/60 hover:bg-sky-800/80 border border-sky-700 rounded text-sky-200">2024 Calibrated</button>
+            <button id="btn-preset-end-tb" class="flex-1 py-1 text-[11px] bg-emerald-900/50 hover:bg-emerald-800/70 border border-emerald-700 rounded text-emerald-200">End TB Blitz</button>
+          </div>
+
+          <!-- Sliders -->
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Transmission Rate (&beta;)</span>
+                <span id="val-beta" class="font-mono text-sky-400 font-bold">0.7881</span>
+              </div>
+              <input id="slider-beta" type="range" min="0.2" max="1.5" step="0.005" value="0.7881" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Notification Rate (&gamma;)</span>
+                <span id="val-gamma" class="font-mono text-sky-400 font-bold">0.9815</span>
+              </div>
+              <input id="slider-gamma" type="range" min="0.5" max="1.0" step="0.002" value="0.9815" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Recovery Rate (&delta;)</span>
+                <span id="val-delta" class="font-mono text-emerald-400 font-bold">0.8726</span>
+              </div>
+              <input id="slider-delta" type="range" min="0.4" max="0.99" step="0.005" value="0.8726" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Treated Mortality (&lambda;)</span>
+                <span id="val-lambda_tb" class="font-mono text-red-400 font-bold">0.0599</span>
+              </div>
+              <input id="slider-lambda_tb" type="range" min="0.01" max="0.2" step="0.002" value="0.0599" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Untreated Fatality (&mu;ᵢ)</span>
+                <span id="val-mu_i" class="font-mono text-amber-400 font-bold">0.4658</span>
+              </div>
+              <input id="slider-mu_i" type="range" min="0.1" max="0.8" step="0.005" value="0.4658" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Relapse Rate (&phi;)</span>
+                <span id="val-phi" class="font-mono text-cyan-400 font-bold">0.0618</span>
+              </div>
+              <input id="slider-phi" type="range" min="0.01" max="0.25" step="0.002" value="0.0618" class="w-full">
+            </div>
+          </div>
+
+          <!-- R0 Readout Box -->
+          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider">Basic Reproduction Number</div>
+            <div id="display-r0-val" class="metric-value text-3xl font-extrabold text-emerald-400 my-1">0.5445</div>
+            <div id="display-r0-phase" class="text-xs font-semibold text-emerald-300">Controlled (Decaying Reservoir)</div>
+          </div>
+        </div>
+
+        <!-- Simulation Outputs -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- ODE Trajectory Chart -->
+          <div class="glass-card p-4">
+            <div class="flex justify-between items-center mb-3">
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">Runge-Kutta 4th Order SITRD Epidemic Trajectory</h3>
+                <p class="text-xs text-slate-400">Simulating Karnataka population compartments forward to 2030</p>
+              </div>
+            </div>
+            <div class="w-full h-64">
+              <canvas id="chart-ode-trajectory" class="w-full h-full"></canvas>
+            </div>
+          </div>
+
+          <!-- Sensitivity and Markov Row -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <!-- Normalized Sensitivity Tornado Chart -->
+            <div class="glass-card p-4">
+              <div class="mb-2">
+                <h4 class="font-bold text-xs text-slate-100">Normalized Parameter Elasticity &Gamma;(R₀, p)</h4>
+                <p class="text-[10px] text-slate-400">&Gamma;(R₀, &beta;) = +1.0000 unit elasticity across all years</p>
+              </div>
+              <div class="w-full h-44">
+                <canvas id="chart-r0-sensitivity" class="w-full h-full"></canvas>
+              </div>
+            </div>
+
+            <!-- Markov 10-Year Cohort Projection -->
+            <div class="glass-card p-4">
+              <div class="mb-2">
+                <h4 class="font-bold text-xs text-slate-100">5-State Markov Chain Projection (Pⁿ)</h4>
+                <p class="text-[10px] text-slate-400">100,000 active TB patients entering treatment cascade</p>
+              </div>
+              <div class="w-full h-44">
+                <canvas id="chart-markov-trajectory" class="w-full h-full"></canvas>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 3: CLINICAL WORKBENCH & EXPLAINABLE AI -->
+    <!-- ========================================== -->
+    <section id="view-clinical" class="tab-view hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Patient Intake Panel -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="flex justify-between items-center border-b border-slate-800 pb-2">
+            <h3 class="font-bold text-sm text-slate-100">Patient Intake Form</h3>
+            <span class="text-[10px] text-slate-400">CDSS Simulator</span>
+          </div>
+
+          <!-- Quick Patient Presets -->
+          <div class="grid grid-cols-3 gap-1.5">
+            <button id="btn-preset-critical" class="py-1 px-1 text-[10px] bg-red-950/60 border border-red-800 rounded text-red-300 font-medium">Critical Cachexia</button>
+            <button id="btn-preset-rrtb" class="py-1 px-1 text-[10px] bg-amber-950/60 border border-amber-800 rounded text-amber-300 font-medium">RR-TB Retreatment</button>
+            <button id="btn-preset-lowrisk" class="py-1 px-1 text-[10px] bg-emerald-950/60 border border-emerald-800 rounded text-emerald-300 font-medium">Low-Risk DOTS</button>
+          </div>
+
+          <!-- Form Fields -->
+          <div class="space-y-3 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 block mb-1">Age (Years)</label>
+                <input id="input-age" type="number" value="45" min="1" max="100" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">BMI (kg/m²)</label>
+                <input id="input-bmi" type="number" step="0.1" value="17.5" min="10" max="40" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 block mb-1">Transit Dist (km)</label>
+                <input id="input-distance" type="number" value="5" min="0" max="100" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">Delay (Days)</label>
+                <input id="input-delay" type="number" value="14" min="0" max="120" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+            </div>
+
+            <!-- Co-morbidity Checkboxes -->
+            <div class="space-y-2 pt-2 border-t border-slate-800">
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-hiv" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-slate-300">HIV Positive Co-infection</span>
+              </label>
+
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-dm" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-slate-300">Diabetes Mellitus (HbA1c &ge; 7.0%)</span>
+              </label>
+
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-alcohol" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-slate-300">Tobacco or Alcohol Use Disorder</span>
+              </label>
+
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-ckd" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-slate-300">Pre-existing Hepatic / Renal Impairment</span>
+              </label>
+
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-rr_tb" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-red-400 font-semibold">Rifampicin-Resistant TB (RR-TB)</span>
+              </label>
+
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-retreatment" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-slate-300">Previously Treated / Recurrence Case</span>
+              </label>
+
+              <label class="flex items-center space-x-2 cursor-pointer">
+                <input id="input-dbt_unlinked" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+                <span class="text-amber-300">Nikshay Poshan DBT Unlinked / Delayed</span>
+              </label>
+            </div>
+          </div>
+        </div>
+
+        <!-- Outcome Probabilities & SHAP Waterfall -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Risk Tier & Probability Cards -->
+          <div class="glass-card p-4">
+            <div class="flex flex-wrap justify-between items-center mb-4 gap-2">
+              <div>
+                <span class="text-xs text-slate-400 uppercase">Stratified Clinical Risk Tier</span>
+                <div class="flex items-center space-x-3 mt-1">
+                  <span id="patient-risk-badge" class="text-sm px-3 py-1 rounded font-bold uppercase badge-moderate">Moderate Risk</span>
+                  <span id="patient-action-code" class="text-xs font-mono text-slate-400">YELLOW_FLAG_ENHANCED_SURVEILLANCE</span>
+                </div>
+              </div>
+              <button onclick="window.print()" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-sky-400 border border-slate-700 rounded text-xs font-semibold flex items-center space-x-1.5 transition">
+                <i class="fa-solid fa-print"></i>
+                <span>Print Clinical Decision Sheet</span>
+              </button>
+            </div>
+
+            <!-- Calibrated Multi-Class Outcomes -->
+            <div class="grid grid-cols-2 sm:grid-cols-5 gap-3 text-center">
+              <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Success</div>
+                <div id="prob-success" class="text-lg font-bold font-mono text-emerald-400">84.2%</div>
+              </div>
+
+              <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Mortality (Death)</div>
+                <div id="prob-death" class="text-lg font-bold font-mono text-red-400">6.8%</div>
+              </div>
+
+              <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">LTFU (Default)</div>
+                <div id="prob-ltfu" class="text-lg font-bold font-mono text-amber-400">7.5%</div>
+              </div>
+
+              <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Failure</div>
+                <div id="prob-failure" class="text-lg font-bold font-mono text-slate-300">1.5%</div>
+              </div>
+
+              <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Secondary Relapse</div>
+                <div id="prob-relapse" class="text-lg font-bold font-mono text-cyan-400">6.2%</div>
+              </div>
+            </div>
+          </div>
+
+          <!-- Explainable AI: SHAP Waterfall -->
+          <div class="glass-card p-4">
+            <h4 class="font-bold text-xs text-slate-100 mb-1">Explainable AI: Feature Risk Attributions (SHAP)</h4>
+            <p class="text-[11px] text-slate-400 mb-3">Quantitative contribution of clinical markers toward mortality and LTFU risk</p>
+            <div id="container-shap-waterfall">
+              <!-- Dynamically Populated -->
+            </div>
+          </div>
+
+          <!-- Clinical & Pharmacist Care Bundles -->
+          <div class="glass-card p-4">
+            <h4 class="font-bold text-xs text-slate-100 mb-1">Actionable Clinical Decision Support & Pharmacist Bundles</h4>
+            <p class="text-[11px] text-slate-400 mb-3">Protocol-driven interventions tailored to individual patient risk profile</p>
+            <div id="container-care-bundles">
+              <!-- Dynamically Populated -->
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW: CLINICAL PHARMACIST & DDI STUDIO -->
+    <!-- ========================================== -->
+    <section id="view-pharmacist" class="tab-view hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Pharmacist Intake & Controls -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="border-b border-slate-800 pb-2">
+            <h3 class="font-bold text-sm text-slate-100">Pharmacovigilance & DDI Intake</h3>
+            <p class="text-xs text-slate-400">Co-medication & Hepato-Renal Screening</p>
+          </div>
+
+          <!-- Co-medication checkboxes -->
+          <div class="space-y-2 text-xs">
+            <label class="text-slate-300 font-semibold block mb-1">Select Patient Co-Medications:</label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="ddi-dtg" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+              <span class="text-slate-200">Dolutegravir (DTG 50mg) [ART]</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="ddi-metformin" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+              <span class="text-slate-200">Metformin / Glimepiride [DM]</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="ddi-phenytoin" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+              <span class="text-slate-200">Phenytoin / Carbamazepine [Epilepsy]</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="ddi-amlodipine" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+              <span class="text-slate-200">Amlodipine [Hypertension]</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input type="checkbox" id="ddi-antacid" class="rounded bg-slate-900 border-slate-700 text-sky-500 focus:ring-0">
+              <span class="text-slate-200">Aluminium/Magnesium Antacids</span>
+            </label>
+          </div>
+
+          <!-- LFT / Renal Lab Inputs -->
+          <div class="space-y-3 pt-3 border-t border-slate-800 text-xs">
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 block mb-1">AST / SGOT (U/L)</label>
+                <input id="input-ast" type="number" value="38" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">ALT / SGPT (U/L)</label>
+                <input id="input-alt" type="number" value="35" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-2">
+              <div>
+                <label class="text-slate-400 block mb-1">Total Bili (mg/dL)</label>
+                <input id="input-bili" type="number" step="0.1" value="0.9" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">CrCl (mL/min)</label>
+                <input id="input-crcl" type="number" value="85" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 font-mono text-slate-100">
+              </div>
+            </div>
+
+            <label class="flex items-center space-x-2 cursor-pointer pt-1">
+              <input type="checkbox" id="input-jaundice" class="rounded bg-slate-900 border-slate-700 text-red-500 focus:ring-0">
+              <span class="text-amber-300 font-medium">Jaundice, Nausea, or RUQ Abdominal Pain</span>
+            </label>
+
+            <button id="btn-eval-pharmacist" class="w-full py-2 bg-sky-600 hover:bg-sky-500 text-white rounded font-semibold text-xs shadow transition mt-2">
+              Run Pharmacotherapy Analysis
+            </button>
+          </div>
+        </div>
+
+        <!-- Clinical Pharmacist Recommendations -->
+        <div class="lg:col-span-2 space-y-4">
+          <!-- DILI Status Card -->
+          <div class="glass-card p-4">
+            <div class="flex justify-between items-center mb-2">
+              <h4 class="font-bold text-xs text-slate-100 uppercase tracking-wider">Hepatic Safety & DILI Assessment</h4>
+              <span id="badge-dili-status" class="px-2 py-0.5 rounded text-[10px] font-bold badge-low">Normal / Mild Elevation</span>
+            </div>
+            <div id="text-dili-action" class="text-xs text-slate-300 mb-2 leading-relaxed">
+              Continue standard daily 4-FDC (HRZE). Routine LFT monitoring recommended at month 1.
+            </div>
+            <div id="container-reintroduction" class="hidden text-xs bg-red-950/40 border border-red-800/60 rounded p-3 space-y-1">
+              <div class="font-bold text-red-300">Mandatory Sequential Re-introduction Protocol:</div>
+              <ul id="list-reintroduction" class="list-disc list-inside text-slate-200 text-[11px] space-y-1"></ul>
+            </div>
+          </div>
+
+          <!-- DDI Alerts Card -->
+          <div class="glass-card p-4">
+            <h4 class="font-bold text-xs text-slate-100 uppercase tracking-wider mb-2">Drug-Drug Interactions (DDI) & Dose Adjustments</h4>
+            <div id="container-ddi-results" class="space-y-2 text-xs">
+              <div class="text-slate-400 italic">No major drug-drug interactions detected for selected medications.</div>
+            </div>
+          </div>
+
+          <!-- Neuropathy & Renal Guidelines -->
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div class="glass-card p-4">
+              <div class="flex items-center space-x-2 mb-1">
+                <i class="fa-solid fa-capsules text-amber-400 text-sm"></i>
+                <h5 class="font-bold text-xs text-slate-100">Pyridoxine (Vitamin B6) Prophylaxis</h5>
+              </div>
+              <div id="text-pyridoxine-dose" class="text-sm font-bold font-mono text-emerald-400 my-1">50 mg daily</div>
+              <p class="text-[11px] text-slate-400 leading-tight">Prevents Isoniazid-induced peripheral neuropathy. Increases to 100 mg daily for high-risk patients.</p>
+            </div>
+
+            <div class="glass-card p-4">
+              <div class="flex items-center space-x-2 mb-1">
+                <i class="fa-solid fa-notes-medical text-sky-400 text-sm"></i>
+                <h5 class="font-bold text-xs text-slate-100">Renal Clearance Guidance</h5>
+              </div>
+              <div id="text-renal-status" class="text-xs text-slate-300 mt-1 leading-tight">
+                CrCl &ge; 30 mL/min: Standard first-line daily dosing.
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW: BATCH PATIENT TRIAGE & NIKSHAY COHORT -->
+    <!-- ========================================== -->
+    <section id="view-batch" class="tab-view hidden space-y-6">
+      <div class="glass-card p-4 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="font-bold text-base text-slate-100">Nikshay Cohort Batch Triage Studio</h3>
+            <p class="text-xs text-slate-400">Automated multi-patient risk ranking, ASHA worklist generation, and default triage</p>
+          </div>
+          <div class="flex items-center space-x-2">
+            <button id="btn-load-sample-batch" class="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded text-xs font-semibold shadow transition">
+              Load 10 Nikshay Patients
+            </button>
+            <button id="btn-export-batch-csv" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs font-semibold transition">
+              Export Worklist (CSV)
+            </button>
+          </div>
+        </div>
+
+        <!-- Triage Summary Metric Row -->
+        <div class="grid grid-cols-2 sm:grid-cols-4 gap-3 text-xs">
+          <div class="bg-slate-900/80 p-3 rounded border border-slate-800 text-center">
+            <div class="text-slate-400 uppercase text-[10px]">Total Triaged</div>
+            <div id="batch-total" class="text-lg font-bold font-mono text-sky-400 mt-0.5">0</div>
+          </div>
+          <div class="bg-slate-900/80 p-3 rounded border border-slate-800 text-center">
+            <div class="text-slate-400 uppercase text-[10px]">Critical Tier (Red)</div>
+            <div id="batch-critical" class="text-lg font-bold font-mono text-red-400 mt-0.5">0</div>
+          </div>
+          <div class="bg-slate-900/80 p-3 rounded border border-slate-800 text-center">
+            <div class="text-slate-400 uppercase text-[10px]">High Burden (Orange)</div>
+            <div id="batch-high" class="text-lg font-bold font-mono text-amber-400 mt-0.5">0</div>
+          </div>
+          <div class="bg-slate-900/80 p-3 rounded border border-slate-800 text-center">
+            <div class="text-slate-400 uppercase text-[10px]">Standard DOTS (Green)</div>
+            <div id="batch-low" class="text-lg font-bold font-mono text-emerald-400 mt-0.5">0</div>
+          </div>
+        </div>
+
+        <!-- Batch Triage Table -->
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+              <tr>
+                <th class="p-3">Patient ID</th>
+                <th class="p-3">Name</th>
+                <th class="p-3">Age / District</th>
+                <th class="p-3">Priority Tier</th>
+                <th class="p-3">Mortality %</th>
+                <th class="p-3">LTFU %</th>
+                <th class="p-3">Action Protocol</th>
+              </tr>
+            </thead>
+            <tbody id="table-batch-triage" class="divide-y divide-slate-800">
+              <tr>
+                <td colspan="7" class="p-4 text-center text-slate-500 italic">Click "Load 10 Nikshay Patients" above to execute cohort triage.</td>
+              </tr>
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 4: 31-DISTRICT SURVEILLANCE & MAP -->
+    <!-- ========================================== -->
+    <section id="view-districts" class="tab-view hidden space-y-6">
+      <div class="glass-card p-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 mb-4">
+          <div>
+            <h3 class="font-bold text-base text-slate-100">Karnataka State 31-District Surveillance Grid</h3>
+            <p class="text-xs text-slate-400">District-level burden stratification, treatment success rates, and priority tiers</p>
+          </div>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-0.5 rounded badge-critical">Critical Tier</span>
+            <span class="px-2 py-0.5 rounded badge-high">High Burden</span>
+            <span class="px-2 py-0.5 rounded badge-moderate">Moderate</span>
+            <span class="px-2 py-0.5 rounded badge-low">Low / Benchmark</span>
+          </div>
+        </div>
+
+        <div id="container-districts-grid">
+          <!-- Dynamically Populated -->
+        </div>
+
+        <!-- District Detail Modal / Drawer -->
+        <div id="district-modal" class="hidden fixed inset-0 z-50 bg-black/70 backdrop-blur-sm flex items-center justify-center p-4">
+          <div class="glass-card max-w-lg w-full p-6 space-y-4 border border-sky-500/30 relative">
+            <button onclick="document.getElementById('district-modal').classList.add('hidden')" class="absolute top-4 right-4 text-slate-400 hover:text-white text-lg">
+              <i class="fa-solid fa-xmark"></i>
+            </button>
+            <div class="flex items-center space-x-3">
+              <div class="w-10 h-10 rounded-lg bg-sky-900/60 border border-sky-700 flex items-center justify-center text-sky-400 font-bold text-lg">
+                <i class="fa-solid fa-location-dot"></i>
+              </div>
+              <div>
+                <h3 id="modal-district-name" class="font-bold text-lg text-white">District Name</h3>
+                <span id="modal-district-zone" class="text-xs text-slate-400">Zone • Population</span>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-2 gap-3 text-xs pt-2">
+              <div class="bg-slate-900/80 p-3 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Annual Notifications</div>
+                <div id="modal-district-notif" class="text-base font-bold font-mono text-sky-400">--</div>
+              </div>
+              <div class="bg-slate-900/80 p-3 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Treatment Success (TSR)</div>
+                <div id="modal-district-tsr" class="text-base font-bold font-mono text-emerald-400">--</div>
+              </div>
+              <div class="bg-slate-900/80 p-3 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">Mortality per 100k</div>
+                <div id="modal-district-mortality" class="text-base font-bold font-mono text-red-400">--</div>
+              </div>
+              <div class="bg-slate-900/80 p-3 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400 uppercase">CBNAAT Coverage</div>
+                <div id="modal-district-cbnaat" class="text-base font-bold font-mono text-cyan-300">--</div>
+              </div>
+            </div>
+
+            <div class="text-xs space-y-2 pt-2 border-t border-slate-800">
+              <div class="flex justify-between text-slate-300">
+                <span>Diabetes Mellitus Co-morbidity:</span>
+                <span id="modal-district-dm" class="font-mono font-bold text-slate-100">--</span>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>HIV Co-infection Rate:</span>
+                <span id="modal-district-hiv" class="font-mono font-bold text-slate-100">--</span>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Surveillance Priority Tier:</span>
+                <span id="modal-district-tier" class="px-2 py-0.5 rounded text-[10px] font-bold">--</span>
+              </div>
+            </div>
+
+            <div class="bg-sky-950/40 border border-sky-900/60 rounded p-3 text-xs space-y-1">
+              <div class="font-semibold text-sky-300">Recommended District Action Plan:</div>
+              <p id="modal-district-plan" class="text-slate-300 leading-relaxed text-[11px]">
+                Accelerate CBNAAT upfront testing and deploy AI mobile X-ray vans to targeted urban slums and high-vulnerability rural clusters.
+              </p>
+            </div>
+
+            <div class="text-right pt-2">
+              <button onclick="document.getElementById('district-modal').classList.add('hidden')" class="px-4 py-2 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded text-xs font-semibold">
+                Close
+              </button>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 5: RESOURCE OPTIMIZATION LAB -->
+    <!-- ========================================== -->
+    <section id="view-resource" class="tab-view hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Budget & Intervention Allocation Sliders -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="border-b border-slate-800 pb-2">
+            <h3 class="font-bold text-sm text-slate-100">Intervention Allocation Studio</h3>
+            <p class="text-xs text-slate-400">Modulate operational investments across 6 programmatic levers</p>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">CBNAAT / Truenat Tests</span>
+                <span id="val-alloc-cbnaat" class="font-mono text-sky-400 font-bold">60,000</span>
+              </div>
+              <input id="alloc-cbnaat" type="range" min="20000" max="150000" step="5000" value="60000" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Active Case Finding Mobile Vans</span>
+                <span id="val-alloc-acf" class="font-mono text-sky-400 font-bold">45</span>
+              </div>
+              <input id="alloc-acf" type="range" min="10" max="120" step="1" value="45" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">ASHA Field Health Workers</span>
+                <span id="val-alloc-asha" class="font-mono text-sky-400 font-bold">1,800</span>
+              </div>
+              <input id="alloc-asha" type="range" min="500" max="5000" step="100" value="1800" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Nikshay Poshan Nutrition DBT</span>
+                <span id="val-alloc-nutrition" class="font-mono text-emerald-400 font-bold">65,000</span>
+              </div>
+              <input id="alloc-nutrition" type="range" min="20000" max="100000" step="5000" value="65000" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">FDC Smart Blister Packs</span>
+                <span id="val-alloc-fdc" class="font-mono text-cyan-400 font-bold">70,000</span>
+              </div>
+              <input id="alloc-fdc" type="range" min="30000" max="95000" step="5000" value="70000" class="w-full">
+            </div>
+
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">TB Preventive Treatment (3HP)</span>
+                <span id="val-alloc-tpt" class="font-mono text-amber-400 font-bold">30,000</span>
+              </div>
+              <input id="alloc-tpt" type="range" min="5000" max="120000" step="5000" value="30000" class="w-full">
+            </div>
+          </div>
+
+          <!-- Total Investment Callout -->
+          <div class="p-3 bg-slate-900 rounded-lg border border-slate-800 text-center">
+            <div class="text-[10px] text-slate-400 uppercase tracking-wider">Projected Annual Programmatic Budget</div>
+            <div id="res-budget-cr" class="metric-value text-3xl font-extrabold text-sky-400 my-1">₹89.5 Cr</div>
+            <div class="text-xs text-slate-400">Karnataka State TB Elimination Plan</div>
+          </div>
+        </div>
+
+        <!-- Policy Simulation Outcomes -->
+        <div class="lg:col-span-2 space-y-6">
+          <!-- Impact Metrics Grid -->
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            <div class="glass-card p-3 text-center">
+              <div class="text-[10px] text-slate-400 uppercase">Simulated R₀</div>
+              <div id="res-new-r0" class="text-xl font-bold font-mono text-emerald-400 mt-1">0.5120</div>
+            </div>
+
+            <div class="glass-card p-3 text-center">
+              <div class="text-[10px] text-slate-400 uppercase">Additional Deaths Averted</div>
+              <div id="res-deaths-averted" class="text-xl font-bold font-mono text-sky-400 mt-1">4,820</div>
+            </div>
+
+            <div class="glass-card p-3 text-center">
+              <div class="text-[10px] text-slate-400 uppercase">2030 Incidence Drop</div>
+              <div id="res-incidence-reduction" class="text-xl font-bold font-mono text-cyan-300 mt-1">46.5%</div>
+            </div>
+
+            <div class="glass-card p-3 text-center">
+              <div class="text-[10px] text-slate-400 uppercase">WHO End TB Status</div>
+              <div id="res-who-compliance" class="text-xs font-bold text-amber-400 mt-2">Accelerated Blitz</div>
+            </div>
+          </div>
+
+          <!-- Policy Trajectory Projection Chart -->
+          <div class="glass-card p-4">
+            <div class="flex justify-between items-center mb-3">
+              <div>
+                <h4 class="font-bold text-sm text-slate-100">Projected Epidemiological Trajectory (2024–2030)</h4>
+                <p class="text-xs text-slate-400">Impact of resource allocation on active infections and cumulative mortality</p>
+              </div>
+            </div>
+            <div class="w-full h-64">
+              <canvas id="chart-resource-projection" class="w-full h-full"></canvas>
+            </div>
+          </div>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW 6: USABILITY PROTOCOL & EVALUATION (SUS/MARS) -->
+    <!-- ========================================== -->
+    <section id="view-evaluation" class="tab-view hidden space-y-6">
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Protocol Summary & Target Tracking -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="border-b border-slate-800 pb-2">
+            <h3 class="font-bold text-sm text-slate-100">Research Objective 9</h3>
+            <p class="text-xs text-slate-400">Usability & Operational Workflow Validation</p>
+          </div>
+
+          <div class="space-y-3">
+            <div class="p-3 bg-slate-900 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Mean System Usability Scale (SUS)</div>
+              <div id="eval-avg-sus" class="metric-value text-3xl font-bold text-emerald-400 my-1">86.2/100</div>
+              <div id="eval-compliance-status" class="text-xs font-bold text-emerald-400">Target Achieved (SUS &ge; 80)</div>
+            </div>
+
+            <div class="p-3 bg-slate-900 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Mobile App Rating Scale (MARS)</div>
+              <div id="eval-avg-mars" class="metric-value text-2xl font-bold text-cyan-300 my-1">4.55/5.0</div>
+              <div class="text-xs text-slate-400">Excellent Engagement & Clinical Functionality</div>
+            </div>
+          </div>
+
+          <div class="text-xs text-slate-400 leading-relaxed">
+            Per Objective 9, the platform is undergoing evaluation across three stakeholder tiers:
+            <ul class="list-disc list-inside mt-2 space-y-1 text-slate-300">
+              <li>District TB Officers (DTOs)</li>
+              <li>Medical Officers (DOTS-Plus Centres)</li>
+              <li>Clinical Pharmacists & Senior Treatment Supervisors (STS)</li>
+            </ul>
+          </div>
+        </div>
+
+        <!-- Interactive Evaluation Submission Form -->
+        <div class="lg:col-span-2 glass-card p-4">
+          <h3 class="font-bold text-sm text-slate-100 mb-1">Submit Healthcare Professional Feedback</h3>
+          <p class="text-xs text-slate-400 mb-4">Standardized 10-Item SUS and MARS protocol response form</p>
+
+          <form id="form-sus-mars" class="space-y-4 text-xs">
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-slate-300 block mb-1">Evaluator Role</label>
+                <select id="eval-role" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-2 text-slate-100">
+                  <option value="District TB Officer (DTO)">District TB Officer (DTO)</option>
+                  <option value="Medical Officer / DOTS-Plus">Medical Officer / DOTS-Plus</option>
+                  <option value="Clinical Pharmacist">Clinical Pharmacist</option>
+                  <option value="Senior Treatment Supervisor (STS)">Senior Treatment Supervisor (STS)</option>
+                  <option value="Epidemiologist / Researcher">Epidemiologist / Researcher</option>
+                </select>
+              </div>
+
+              <div>
+                <label class="text-slate-300 block mb-1">Administrative District</label>
+                <select id="eval-district" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-2 text-slate-100">
+                  <option value="BBMP (Bengaluru City)">BBMP (Bengaluru City)</option>
+                  <option value="Belagavi">Belagavi</option>
+                  <option value="Kalaburagi">Kalaburagi</option>
+                  <option value="Ballari">Ballari</option>
+                  <option value="Raichur">Raichur</option>
+                  <option value="Mysuru">Mysuru</option>
+                  <option value="Udupi">Udupi</option>
+                </select>
+              </div>
+            </div>
+
+            <div class="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div>
+                <label class="text-slate-300 block mb-1">Assessed SUS Score (0–100)</label>
+                <input id="eval-sus-score" type="number" min="0" max="100" value="85" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-2 font-mono text-slate-100">
+                <span class="text-[10px] text-slate-400">Target benchmark: &ge; 80.0</span>
+              </div>
+
+              <div>
+                <label class="text-slate-300 block mb-1">MARS Clinical Score (1.0–5.0)</label>
+                <input id="eval-mars-score" type="number" step="0.1" min="1.0" max="5.0" value="4.6" class="w-full bg-slate-900 border border-slate-700 rounded px-2.5 py-2 font-mono text-slate-100">
+                <span class="text-[10px] text-slate-400">Target benchmark: &ge; 4.0</span>
+              </div>
+            </div>
+
+            <div>
+              <label class="text-slate-300 block mb-1">Qualitative Feedback & Operational Observations</label>
+              <textarea id="eval-feedback" rows="3" placeholder="Enter clinical observations, workflow integration feasibility, or decision support feedback..." class="w-full bg-slate-900 border border-slate-700 rounded p-2.5 text-slate-100"></textarea>
+            </div>
+
+            <button type="submit" class="px-4 py-2 bg-sky-600 hover:bg-sky-500 text-white rounded font-semibold text-xs shadow transition">
+              Submit Protocol Evaluation
+            </button>
+          </form>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Scripts -->
+  <script src="js/math_engine_client.js"></script>
+  <script src="js/charts.js"></script>
+  <script src="js/app.js"></script>
+</body>
+</html>

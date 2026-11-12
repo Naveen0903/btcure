@@ -1,0 +1,317 @@
+{
+  "metadata": {
+    "project": "BEYOND THE CURE: Karnataka NTEP Surveillance & Clinical Decision Platform",
+    "cohort_size": 372863,
+    "timeframe": "2021-2025",
+    "supervision": "Dr. Mekkanti Manasa Rekha, Acharya & BM Reddy College of Pharmacy, RGUHS",
+    "governance_approval": "Karnataka State TB Control Board OM No. 22/2025-26",
+    "karnataka_population_2024": 67690000,
+    "version": "1.0.0"
+  },
+  "annual_metrics": [
+    {
+      "year": 2021,
+      "notifications": 67617,
+      "treatment_initiated": 75702,
+      "cured_success": 65704,
+      "deaths": 4008,
+      "relapses": 5984,
+      "ltfu": 3456,
+      "failure": 534,
+      "tsr_pct": 86.8,
+      "r0": 0.6557,
+      "beta": 0.8749,
+      "gamma": 0.9717,
+      "delta": 0.8311,
+      "lambda": 0.0752,
+      "mu_i": 0.3627,
+      "phi": 0.1237,
+      "dr_tb_cases": 842,
+      "lives_saved_counterfactual": 22150
+    },
+    {
+      "year": 2022,
+      "notifications": 67823,
+      "treatment_initiated": 75340,
+      "cured_success": 65301,
+      "deaths": 4149,
+      "relapses": 5890,
+      "ltfu": 3210,
+      "failure": 680,
+      "tsr_pct": 86.7,
+      "r0": 0.6630,
+      "beta": 0.8797,
+      "gamma": 0.9774,
+      "delta": 0.8641,
+      "lambda": 0.0671,
+      "mu_i": 0.3495,
+      "phi": 0.1159,
+      "dr_tb_cases": 718,
+      "lives_saved_counterfactual": 24320
+    },
+    {
+      "year": 2023,
+      "notifications": 65035,
+      "treatment_initiated": 76009,
+      "cured_success": 66204,
+      "deaths": 3959,
+      "relapses": 5846,
+      "ltfu": 3112,
+      "failure": 734,
+      "tsr_pct": 87.1,
+      "r0": 0.6599,
+      "beta": 0.8749,
+      "gamma": 0.9763,
+      "delta": 0.8648,
+      "lambda": 0.0599,
+      "mu_i": 0.3495,
+      "phi": 0.1084,
+      "dr_tb_cases": 536,
+      "lives_saved_counterfactual": 26180
+    },
+    {
+      "year": 2024,
+      "notifications": 67882,
+      "treatment_initiated": 74704,
+      "cured_success": 68095,
+      "deaths": 3923,
+      "relapses": 2686,
+      "ltfu": 2120,
+      "failure": 566,
+      "tsr_pct": 91.2,
+      "r0": 0.5445,
+      "beta": 0.7881,
+      "gamma": 0.9815,
+      "delta": 0.8726,
+      "lambda": 0.0599,
+      "mu_i": 0.4658,
+      "phi": 0.0618,
+      "dr_tb_cases": 0,
+      "lives_saved_counterfactual": 27240
+    },
+    {
+      "year": 2025,
+      "notifications": 64506,
+      "treatment_initiated": 71108,
+      "cured_success": 62682,
+      "deaths": 3728,
+      "relapses": 4698,
+      "ltfu": 2354,
+      "failure": 344,
+      "ongoing_treatment": 23412,
+      "tsr_pct": 90.66,
+      "r0": 0.6150,
+      "beta": 0.9020,
+      "gamma": 0.9808,
+      "delta": 0.5844,
+      "lambda": 0.0600,
+      "mu_i": 0.4859,
+      "phi": 0.0873,
+      "dr_tb_cases": 0,
+      "lives_saved_counterfactual": 27420
+    }
+  ],
+  "cumulative_summary": {
+    "total_cohort": 372863,
+    "total_notified": 332863,
+    "total_treatment_initiated": 372863,
+    "total_cured_success": 327986,
+    "total_deaths": 19767,
+    "total_relapses": 25104,
+    "total_lives_saved_averted": 127310,
+    "average_tsr_pct": 88.49,
+    "treated_mortality_rate_2025": 0.0600,
+    "untreated_mortality_rate_2025": 0.4859,
+    "untreated_mortality_penalty_factor": 8.10,
+    "dr_tb_reduction_pct": 100.0,
+    "relapse_reduction_2021_to_2024_pct": 55.1
+  },
+  "sitrd_baseline": {
+    "parameters": {
+      "beta": { "label": "Transmission Rate (beta)", "default": 0.7881, "min": 0.2, "max": 1.5, "step": 0.01 },
+      "gamma": { "label": "Notification Rate (gamma)", "default": 0.9815, "min": 0.5, "max": 1.0, "step": 0.005 },
+      "delta": { "label": "Recovery Rate (delta)", "default": 0.8726, "min": 0.4, "max": 0.99, "step": 0.01 },
+      "lambda": { "label": "Treated Mortality Rate (lambda)", "default": 0.0599, "min": 0.01, "max": 0.2, "step": 0.005 },
+      "mu_i": { "label": "Untreated Disease Mortality (mu_i)", "default": 0.4658, "min": 0.1, "max": 0.8, "step": 0.01 },
+      "mu": { "label": "Natural Baseline Mortality (mu)", "default": 0.0150, "min": 0.005, "max": 0.03, "step": 0.001 },
+      "phi": { "label": "Relapse / Immunity Loss Rate (phi)", "default": 0.0618, "min": 0.01, "max": 0.25, "step": 0.005 }
+    },
+    "elasticity": {
+      "Gamma_R0_beta": 1.0000,
+      "Gamma_R0_gamma_2021": -0.7201,
+      "Gamma_R0_gamma_2024": -0.6712,
+      "Gamma_R0_gamma_2025": -0.6619,
+      "Gamma_R0_mu_i_2024": -0.3185,
+      "Gamma_R0_mu_i_2025": -0.3279
+    }
+  },
+  "markov_transition_matrices": {
+    "states": ["Susceptible", "Infectious", "Treated", "Recovered", "Death"],
+    "2021": [
+      [0.9989, 0.0009, 0.0000, 0.0000, 0.0002],
+      [0.0000, 0.0041, 0.9926, 0.0000, 0.0033],
+      [0.0000, 0.0000, 0.0076, 0.9172, 0.0752],
+      [0.1237, 0.0000, 0.0000, 0.8761, 0.0002],
+      [0.0000, 0.0000, 0.0000, 0.0000, 1.0000]
+    ],
+    "2022": [
+      [0.9989, 0.0009, 0.0000, 0.0000, 0.0002],
+      [0.0000, 0.0038, 0.9929, 0.0000, 0.0033],
+      [0.0000, 0.0000, 0.0069, 0.9260, 0.0671],
+      [0.1159, 0.0000, 0.0000, 0.8839, 0.0002],
+      [0.0000, 0.0000, 0.0000, 0.0000, 1.0000]
+    ],
+    "2023": [
+      [0.9989, 0.0009, 0.0000, 0.0000, 0.0002],
+      [0.0000, 0.0035, 0.9932, 0.0000, 0.0033],
+      [0.0000, 0.0000, 0.0051, 0.9350, 0.0599],
+      [0.1084, 0.0000, 0.0000, 0.8914, 0.0002],
+      [0.0000, 0.0000, 0.0000, 0.0000, 1.0000]
+    ],
+    "2024": [
+      [0.9988, 0.0010, 0.0000, 0.0000, 0.0002],
+      [0.0000, 0.0031, 0.9934, 0.0000, 0.0035],
+      [0.0000, 0.0000, 0.0042, 0.9359, 0.0599],
+      [0.0618, 0.0000, 0.0000, 0.9380, 0.0002],
+      [0.0000, 0.0000, 0.0000, 0.0000, 1.0000]
+    ],
+    "2025": [
+      [0.9988, 0.0010, 0.0000, 0.0000, 0.0002],
+      [0.0000, 0.0032, 0.9931, 0.0000, 0.0037],
+      [0.0000, 0.0000, 0.0062, 0.9338, 0.0600],
+      [0.0873, 0.0000, 0.0000, 0.9125, 0.0002],
+      [0.0000, 0.0000, 0.0000, 0.0000, 1.0000]
+    ]
+  },
+  "regression_models": {
+    "notifications": {
+      "equation": "Y = 64329.2 + 567.0 * X",
+      "slope": 567.0,
+      "intercept": 64329.2,
+      "r_squared": 0.041,
+      "p_value": 0.743,
+      "interpretation": "Plateaued notifications indicating unreached transmission reservoir in community."
+    },
+    "treatment_initiations": {
+      "equation": "Y = 72906.2 + 1125.9 * X",
+      "slope": 1125.9,
+      "intercept": 72906.2,
+      "r_squared": 0.287,
+      "p_value": 0.352,
+      "interpretation": "Stable cascade linkage with expanded retreatment enrollments."
+    },
+    "recoveries": {
+      "equation": "Y = 63074.75 + 2429.1 * X",
+      "slope": 2429.1,
+      "intercept": 63074.75,
+      "r_squared": 0.835,
+      "p_value": 0.030,
+      "interpretation": "Statistically significant upward trend in treatment success and clinical cure."
+    },
+    "deaths": {
+      "equation": "Y = 4493.8 - 433.7 * X",
+      "slope": -433.7,
+      "intercept": 4493.8,
+      "r_squared": 0.957,
+      "p_value": 0.004,
+      "interpretation": "Highly significant decline in on-treatment absolute fatalities."
+    },
+    "relapses": {
+      "equation": "Y = 5876.8 - 1021.7 * X",
+      "slope": -1021.7,
+      "intercept": 5876.8,
+      "r_squared": 0.732,
+      "p_value": 0.064,
+      "interpretation": "Marked reduction in secondary relapses following DR-TB suppression."
+    }
+  },
+  "districts": [
+    { "id": "bbmp", "name": "BBMP (Bengaluru City)", "zone": "South", "pop": 12800000, "notifications": 13480, "tsr": 88.5, "mortality_rate": 6.2, "hiv_pct": 3.8, "dm_pct": 21.4, "cbnaat_coverage": 89.2, "risk_tier": "High", "lat": 12.9716, "lng": 77.5946 },
+    { "id": "bengaluru_urban", "name": "Bengaluru Urban", "zone": "South", "pop": 2900000, "notifications": 4820, "tsr": 89.2, "mortality_rate": 5.8, "hiv_pct": 2.9, "dm_pct": 19.8, "cbnaat_coverage": 88.0, "risk_tier": "Moderate", "lat": 13.0033, "lng": 77.5891 },
+    { "id": "bengaluru_rural", "name": "Bengaluru Rural", "zone": "South", "pop": 1050000, "notifications": 1450, "tsr": 91.0, "mortality_rate": 5.1, "hiv_pct": 1.8, "dm_pct": 16.2, "cbnaat_coverage": 84.5, "risk_tier": "Low", "lat": 13.2287, "lng": 77.5824 },
+    { "id": "belagavi", "name": "Belagavi", "zone": "North", "pop": 5100000, "notifications": 4210, "tsr": 90.5, "mortality_rate": 5.9, "hiv_pct": 2.5, "dm_pct": 14.5, "cbnaat_coverage": 82.0, "risk_tier": "Moderate", "lat": 15.8497, "lng": 74.4977 },
+    { "id": "ballari", "name": "Ballari", "zone": "Central", "pop": 2650000, "notifications": 2810, "tsr": 87.8, "mortality_rate": 6.8, "hiv_pct": 3.4, "dm_pct": 15.1, "cbnaat_coverage": 78.4, "risk_tier": "High", "lat": 15.1394, "lng": 76.9214 },
+    { "id": "kalaburagi", "name": "Kalaburagi", "zone": "North", "pop": 2850000, "notifications": 3420, "tsr": 88.2, "mortality_rate": 6.5, "hiv_pct": 3.2, "dm_pct": 13.9, "cbnaat_coverage": 79.1, "risk_tier": "High", "lat": 17.3297, "lng": 76.8343 },
+    { "id": "mysuru", "name": "Mysuru", "zone": "South", "pop": 3200000, "notifications": 3120, "tsr": 92.1, "mortality_rate": 5.4, "hiv_pct": 2.1, "dm_pct": 17.4, "cbnaat_coverage": 86.9, "risk_tier": "Low", "lat": 12.2958, "lng": 76.6394 },
+    { "id": "vijayapura", "name": "Vijayapura", "zone": "North", "pop": 2350000, "notifications": 2650, "tsr": 89.4, "mortality_rate": 6.1, "hiv_pct": 2.6, "dm_pct": 14.2, "cbnaat_coverage": 80.5, "risk_tier": "Moderate", "lat": 16.8302, "lng": 75.7100 },
+    { "id": "tumakuru", "name": "Tumakuru", "zone": "South", "pop": 2800000, "notifications": 2510, "tsr": 91.8, "mortality_rate": 5.2, "hiv_pct": 1.9, "dm_pct": 16.8, "cbnaat_coverage": 83.7, "risk_tier": "Low", "lat": 13.3409, "lng": 77.1010 },
+    { "id": "shivamogga", "name": "Shivamogga", "zone": "Central", "pop": 1850000, "notifications": 2090, "tsr": 92.4, "mortality_rate": 5.0, "hiv_pct": 2.0, "dm_pct": 15.6, "cbnaat_coverage": 85.3, "risk_tier": "Low", "lat": 13.9299, "lng": 75.5681 },
+    { "id": "raichur", "name": "Raichur", "zone": "North", "pop": 2100000, "notifications": 2460, "tsr": 86.9, "mortality_rate": 7.1, "hiv_pct": 3.5, "dm_pct": 12.8, "cbnaat_coverage": 74.0, "risk_tier": "Critical", "lat": 16.2120, "lng": 77.3439 },
+    { "id": "bagalkote", "name": "Bagalkote", "zone": "North", "pop": 2000000, "notifications": 2150, "tsr": 89.1, "mortality_rate": 6.0, "hiv_pct": 2.4, "dm_pct": 13.6, "cbnaat_coverage": 81.2, "risk_tier": "Moderate", "lat": 16.1691, "lng": 75.6615 },
+    { "id": "bidar", "name": "Bidar", "zone": "North", "pop": 1800000, "notifications": 1920, "tsr": 88.0, "mortality_rate": 6.4, "hiv_pct": 2.8, "dm_pct": 13.1, "cbnaat_coverage": 77.6, "risk_tier": "Moderate", "lat": 17.9104, "lng": 77.5199 },
+    { "id": "chikkamagaluru", "name": "Chikkamagaluru", "zone": "Central", "pop": 1200000, "notifications": 1110, "tsr": 93.0, "mortality_rate": 4.8, "hiv_pct": 1.5, "dm_pct": 14.8, "cbnaat_coverage": 87.1, "risk_tier": "Low", "lat": 13.3161, "lng": 75.7720 },
+    { "id": "chitradurga", "name": "Chitradurga", "zone": "Central", "pop": 1750000, "notifications": 1760, "tsr": 90.2, "mortality_rate": 5.5, "hiv_pct": 2.2, "dm_pct": 14.9, "cbnaat_coverage": 82.5, "risk_tier": "Low", "lat": 14.2251, "lng": 76.3980 },
+    { "id": "dakshina_kannada", "name": "Dakshina Kannada", "zone": "Coastal", "pop": 2200000, "notifications": 1840, "tsr": 93.5, "mortality_rate": 4.6, "hiv_pct": 1.7, "dm_pct": 18.2, "cbnaat_coverage": 91.5, "risk_tier": "Low", "lat": 12.8703, "lng": 74.8806 },
+    { "id": "davanagere", "name": "Davanagere", "zone": "Central", "pop": 2050000, "notifications": 1670, "tsr": 91.4, "mortality_rate": 5.3, "hiv_pct": 2.1, "dm_pct": 15.4, "cbnaat_coverage": 84.1, "risk_tier": "Low", "lat": 14.4644, "lng": 75.9218 },
+    { "id": "dharwad", "name": "Dharwad", "zone": "North", "pop": 1950000, "notifications": 2210, "tsr": 90.8, "mortality_rate": 5.6, "hiv_pct": 2.3, "dm_pct": 16.0, "cbnaat_coverage": 86.0, "risk_tier": "Low", "lat": 15.4589, "lng": 75.0078 },
+    { "id": "gadag", "name": "Gadag", "zone": "North", "pop": 1150000, "notifications": 1210, "tsr": 89.8, "mortality_rate": 5.9, "hiv_pct": 2.2, "dm_pct": 13.7, "cbnaat_coverage": 80.9, "risk_tier": "Moderate", "lat": 15.4317, "lng": 75.6355 },
+    { "id": "hassan", "name": "Hassan", "zone": "South", "pop": 1850000, "notifications": 1560, "tsr": 92.2, "mortality_rate": 4.9, "hiv_pct": 1.6, "dm_pct": 16.5, "cbnaat_coverage": 86.4, "risk_tier": "Low", "lat": 13.0033, "lng": 76.1004 },
+    { "id": "haveri", "name": "Haveri", "zone": "Central", "pop": 1680000, "notifications": 1410, "tsr": 90.1, "mortality_rate": 5.7, "hiv_pct": 2.0, "dm_pct": 14.1, "cbnaat_coverage": 81.8, "risk_tier": "Low", "lat": 14.7954, "lng": 75.3991 },
+    { "id": "mandya", "name": "Mandya", "zone": "South", "pop": 1900000, "notifications": 1510, "tsr": 92.8, "mortality_rate": 4.7, "hiv_pct": 1.4, "dm_pct": 17.1, "cbnaat_coverage": 87.5, "risk_tier": "Low", "lat": 12.5244, "lng": 76.8958 },
+    { "id": "udupi", "name": "Udupi", "zone": "Coastal", "pop": 1250000, "notifications": 960, "tsr": 94.2, "mortality_rate": 4.2, "hiv_pct": 1.3, "dm_pct": 19.0, "cbnaat_coverage": 93.0, "risk_tier": "Low", "lat": 13.3409, "lng": 74.7421 },
+    { "id": "uttara_kannada", "name": "Uttara Kannada", "zone": "Coastal", "pop": 1500000, "notifications": 1260, "tsr": 92.0, "mortality_rate": 5.0, "hiv_pct": 1.5, "dm_pct": 14.6, "cbnaat_coverage": 85.0, "risk_tier": "Low", "lat": 14.8185, "lng": 74.1416 },
+    { "id": "ramanagara", "name": "Ramanagara", "zone": "South", "pop": 1150000, "notifications": 1160, "tsr": 91.5, "mortality_rate": 5.1, "hiv_pct": 1.7, "dm_pct": 15.9, "cbnaat_coverage": 84.0, "risk_tier": "Low", "lat": 12.7214, "lng": 77.2810 },
+    { "id": "koppal", "name": "Koppal", "zone": "North", "pop": 1500000, "notifications": 1620, "tsr": 87.5, "mortality_rate": 6.7, "hiv_pct": 2.9, "dm_pct": 12.5, "cbnaat_coverage": 76.2, "risk_tier": "High", "lat": 15.3533, "lng": 76.1554 },
+    { "id": "yadgir", "name": "Yadgir", "zone": "North", "pop": 1250000, "notifications": 1520, "tsr": 86.2, "mortality_rate": 7.3, "hiv_pct": 3.6, "dm_pct": 11.9, "cbnaat_coverage": 72.8, "risk_tier": "Critical", "lat": 16.7628, "lng": 77.1378 },
+    { "id": "chamarajanagara", "name": "Chamarajanagara", "zone": "South", "pop": 1100000, "notifications": 860, "tsr": 91.2, "mortality_rate": 5.3, "hiv_pct": 1.9, "dm_pct": 14.7, "cbnaat_coverage": 82.6, "risk_tier": "Low", "lat": 11.9261, "lng": 76.9437 },
+    { "id": "chikkaballapura", "name": "Chikkaballapura", "zone": "South", "pop": 1350000, "notifications": 1220, "tsr": 90.6, "mortality_rate": 5.4, "hiv_pct": 2.0, "dm_pct": 16.1, "cbnaat_coverage": 83.2, "risk_tier": "Low", "lat": 13.4355, "lng": 77.7315 },
+    { "id": "kolar", "name": "Kolar", "zone": "South", "pop": 1600000, "notifications": 1460, "tsr": 90.0, "mortality_rate": 5.5, "hiv_pct": 2.1, "dm_pct": 16.4, "cbnaat_coverage": 82.9, "risk_tier": "Low", "lat": 13.1367, "lng": 78.1291 },
+    { "id": "vijayanagara", "name": "Vijayanagara", "zone": "Central", "pop": 1450000, "notifications": 1810, "tsr": 87.9, "mortality_rate": 6.6, "hiv_pct": 3.1, "dm_pct": 13.4, "cbnaat_coverage": 77.0, "risk_tier": "High", "lat": 15.2792, "lng": 76.3869 }
+  ],
+  "interventions_catalog": [
+    {
+      "id": "cbnaat",
+      "name": "CBNAAT / Truenat Molecular Diagnostics",
+      "cost_per_unit_inr": 1850,
+      "current_allocation": 45000,
+      "max_capacity": 150000,
+      "impact_gamma_boost": 0.08,
+      "description": "Rapid upfront rifampicin-resistance and high-sensitivity case detection within 2 hours."
+    },
+    {
+      "id": "acf_vans",
+      "name": "Active Case Finding Mobile Vans (AI X-Ray)",
+      "cost_per_unit_inr": 350000,
+      "current_allocation": 42,
+      "max_capacity": 120,
+      "impact_reservoir_reduction": 0.15,
+      "description": "AI-enabled ultraportable digital X-ray vans deployed to urban slums and rural tribal pockets."
+    },
+    {
+      "id": "chw_asha",
+      "name": "Community Health Worker (ASHA / DTO Triage)",
+      "cost_per_unit_inr": 12000,
+      "current_allocation": 1200,
+      "max_capacity": 4500,
+      "impact_ltfu_reduction": 0.35,
+      "description": "Monthly incentive & digital tablet support for doorstep DOTS and adverse event monitoring."
+    },
+    {
+      "id": "nikshay_poshan",
+      "name": "Nikshay Poshan Direct Benefit Transfer (DBT)",
+      "cost_per_unit_inr": 1000,
+      "current_allocation": 65000,
+      "max_capacity": 100000,
+      "impact_mortality_reduction": 0.18,
+      "description": "Enhanced monthly nutrition assistance (INR 1,000/mo) for BMI < 18.5 TB patients."
+    },
+    {
+      "id": "fdc_adherence",
+      "name": "Fixed-Dose Combination + Smart Blister / 99DOTS",
+      "cost_per_unit_inr": 450,
+      "current_allocation": 70000,
+      "max_capacity": 90000,
+      "impact_recovery_boost": 0.04,
+      "description": "Daily 4-FDC blister packaging with toll-free electronic pill verification."
+    },
+    {
+      "id": "tpt_contacts",
+      "name": "TB Preventive Treatment (3HP Regimen)",
+      "cost_per_unit_inr": 2200,
+      "current_allocation": 25000,
+      "max_capacity": 120000,
+      "impact_beta_reduction": 0.22,
+      "description": "12-dose weekly rifapentine + isoniazid for household contacts and immunocompromised individuals."
+    }
+  ]
+}
