@@ -272,5 +272,22 @@ class TestHandlerInMemory(unittest.TestCase):
         from api.index import handler as vercel_handler
         self.assertTrue(issubclass(vercel_handler, server.BeyondTheCureHandler))
 
+        # 5. Verify Vercel rewrite paths (/api/index.py?__path=...)
+        status, html_root = self._execute_request("GET", "/api/index.py?__path=/")
+        self.assertIn("200", status)
+        self.assertIn("BEYOND THE CURE", html_root)
+
+        status, html_bare = self._execute_request("GET", "/api/index.py")
+        self.assertIn("200", status)
+        self.assertIn("BEYOND THE CURE", html_bare)
+
+        status, js_rewritten = self._execute_request("GET", "/api/index.py?__path=/js/app.js")
+        self.assertIn("200", status)
+        self.assertIn("window.App", js_rewritten)
+
+        status, api_rewritten = self._execute_request("GET", "/api/index.py?__path=/api/summary")
+        self.assertIn("200", status)
+        self.assertIn("annual_metrics", api_rewritten)
+
 if __name__ == "__main__":
     unittest.main()

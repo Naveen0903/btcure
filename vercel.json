@@ -1,17 +1,22 @@
 {
   "version": 2,
+  "functions": {
+    "api/*.py": {
+      "includeFiles": "{data/**,static/**,core/**}"
+    }
+  },
   "rewrites": [
     {
       "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__path=/api/$1"
     },
     {
       "source": "/data/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__path=/data/$1"
     },
     {
       "source": "/(.*)",
-      "destination": "/api/index.py"
+      "destination": "/api/index.py?__path=/$1"
     }
   ]
 }

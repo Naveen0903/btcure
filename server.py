@@ -211,9 +211,30 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
         except json.JSONDecodeError:
             return {}
 
-    def do_GET(self):
+    def _resolve_request_path(self):
+        """
+        Extracts the normalized URI path and query parameters across both direct
+        HTTP requests and Vercel Serverless Function rewrites (/api/index.py?__path=...).
+        """
         url_parsed = urllib.parse.urlparse(self.path)
-        path = url_parsed.path
+        qs = urllib.parse.parse_qs(url_parsed.query)
+        raw_path = url_parsed.path
+
+        if "__path" in qs and qs["__path"]:
+            forwarded = qs["__path"][0]
+            sub_parsed = urllib.parse.urlparse(forwarded)
+            raw_path = "/" + sub_parsed.path.lstrip("/")
+            if sub_parsed.query:
+                sub_qs = urllib.parse.parse_qs(sub_parsed.query)
+                qs.update(sub_qs)
+
+        if raw_path in ["", "/api/index.py", "/api/index"]:
+            raw_path = "/"
+
+        return raw_path, qs
+
+    def do_GET(self):
+        path, qs = self._resolve_request_path()
 
         # REST API Routes
         if path == "/api/health":
@@ -279,7 +300,6 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         elif path == "/api/forecast":
-            qs = urllib.parse.parse_qs(url_parsed.query)
             ind = qs.get("indicator", ["relapses"])[0]
             self._set_headers()
             self.wfile.write(json.dumps({
@@ -289,7 +309,6 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
             return
 
         elif path == "/api/validation/models":
-            qs = urllib.parse.parse_qs(url_parsed.query)
             mod_id = qs.get("model", ["catboost_calibrated"])[0]
             self._set_headers()
             self.wfile.write(json.dumps({
@@ -321,7 +340,7 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
                 return
 
         # Serve static files explicitly (compatible with both Vercel Serverless & local HTTPServer)
-        rel_path = "index.html" if path in ["/", ""] else path.lstrip("/")
+        rel_path = "index.html" if path in ["/", "", "/index.html"] else path.lstrip("/")
         safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel_path))
         if safe_path.startswith(STATIC_DIR) and os.path.isfile(safe_path):
             mime_type, _ = mimetypes.guess_type(safe_path)
@@ -330,12 +349,24 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
                 self.wfile.write(f.read())
             return
 
-        # Fallback to standard static file server
-        super().do_GET()
+        # Fallback: serve index.html for SPA routes or 404 JSON for unknown /api/ routes
+        if path.startswith("/api/"):
+            self._set_headers(404)
+            self.wfile.write(json.dumps({"error": f"Endpoint {path} not found"}).encode("utf-8"))
+            return
+
+        index_fallback = os.path.join(STATIC_DIR, "index.html")
+        if os.path.isfile(index_fallback):
+            self._set_headers(200, "text/html; charset=utf-8")
+            with open(index_fallback, "rb") as f:
+                self.wfile.write(f.read())
+            return
+
+        self._set_headers(404, "text/plain")
+        self.wfile.write(b"404 Not Found")
 
     def do_POST(self):
-        url_parsed = urllib.parse.urlparse(self.path)
-        path = url_parsed.path
+        path, qs = self._resolve_request_path()
         body = self._read_json_body()
 
         if path == "/api/auth/login":
