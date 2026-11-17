@@ -214,5 +214,38 @@ class TestHandlerInMemory(unittest.TestCase):
         self.assertIn("200", status)
         self.assertIn("window.App", js)
 
+    def test_features_2_to_6_endpoints(self):
+        # Feature 2 & 3: Counterfactuals & Survival Hazard
+        pt = {"age": 62, "bmi": 15.0, "dbt_unlinked": True, "tobacco_or_alcohol": True, "consecutive_missed_days": 15}
+        status, cf = self._execute_request("POST", "/api/predict/counterfactuals", {"patient": pt})
+        self.assertIn("200", status)
+        self.assertIn("modifiable_levers", cf)
+
+        status, surv = self._execute_request("POST", "/api/predict/survival-hazard", {"patient": pt})
+        self.assertIn("200", status)
+        self.assertEqual(len(surv["months"]), 7)
+
+        # Feature 4: Forecasting & Structural Break
+        status, fc = self._execute_request("GET", "/api/forecast?indicator=relapses")
+        self.assertIn("200", status)
+        self.assertIn("forecast", fc)
+        self.assertIn("correlations", fc)
+
+        # Feature 5: Model Validation & 2025 Partial Cohort Bounding
+        status, val = self._execute_request("GET", "/api/validation/models?model=catboost_calibrated")
+        self.assertIn("200", status)
+        self.assertIn("validation", val)
+        self.assertIn("partial_cohort_2025", val)
+
+        status, b25 = self._execute_request("POST", "/api/validation/bound-2025", {"assumed_pending_tsr_pct": 92.0})
+        self.assertIn("200", status)
+        self.assertEqual(b25["pending_on_treatment_2025"], 23412)
+
+        # Feature 6: Synthetic Cohort Generator
+        status, syn = self._execute_request("POST", "/api/synthetic/generate", {"sample_size": 25, "seed_offset": 42})
+        self.assertIn("200", status)
+        self.assertEqual(syn["sample_size_generated"], 25)
+        self.assertEqual(len(syn["synthetic_records"]), 25)
+
 if __name__ == "__main__":
     unittest.main()

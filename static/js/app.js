@@ -17,6 +17,7 @@ window.App = {
     this.setupPharmacistStudio();
     this.setupBatchTriage();
     this.setupCareGapsModule();
+    this.setupAIValidationModule();
     this.setupResourceLab();
     this.setupEvaluationForm();
     this.renderOverview();
@@ -39,7 +40,7 @@ window.App = {
   },
 
   setupNavigation: function() {
-    const tabs = ["overview", "digital-twin", "clinical", "pharmacist", "batch", "care-gaps", "districts", "resource", "evaluation"];
+    const tabs = ["overview", "digital-twin", "clinical", "pharmacist", "batch", "care-gaps", "ai-validation", "districts", "resource", "evaluation"];
     tabs.forEach(tab => {
       const btn = document.getElementById(`nav-${tab}`);
       if (btn) {
@@ -73,6 +74,7 @@ window.App = {
     else if (tab === "pharmacist") this.runPharmacistAnalysis();
     else if (tab === "batch") this.renderBatchView();
     else if (tab === "care-gaps") this.renderCareGapsView();
+    else if (tab === "ai-validation") this.renderAIValidationView();
     else if (tab === "districts") this.renderDistrictsView();
     else if (tab === "resource") this.runResourceOptimization();
     else if (tab === "evaluation") this.loadEvaluationStats();
@@ -237,7 +239,7 @@ window.App = {
 
   // 3. Clinical Workbench & SHAP Explainability
   setupClinicalWorkbench: function() {
-    const inputs = ["age", "bmi", "distance", "delay", "hiv", "dm", "retreatment", "alcohol", "ckd", "rr_tb", "dbt_unlinked"];
+    const inputs = ["age", "bmi", "distance", "delay", "hiv", "dm", "retreatment", "alcohol", "ckd", "rr_tb", "dbt_unlinked", "adherence", "missed-days", "sputum-m2"];
     inputs.forEach(id => {
       document.getElementById(`input-${id}`)?.addEventListener("change", () => this.runClinicalScoring());
       document.getElementById(`input-${id}`)?.addEventListener("input", () => this.runClinicalScoring());
@@ -245,19 +247,19 @@ window.App = {
 
     // Preset Patient Profiles
     document.getElementById("btn-preset-critical")?.addEventListener("click", () => {
-      this.setPatientForm({ age: 68, bmi: 14.5, hiv: true, dm: true, alcohol: true, ckd: false, rr_tb: false, retreatment: true, delay: 28, dbt: true, dist: 16 });
+      this.setPatientForm({ age: 68, bmi: 14.5, hiv: true, dm: true, alcohol: true, ckd: false, rr_tb: false, retreatment: true, delay: 28, dbt: true, dist: 16, adherence: 74, missed: 16, sputum: "positive" });
     });
     document.getElementById("btn-preset-rrtb")?.addEventListener("click", () => {
-      this.setPatientForm({ age: 34, bmi: 16.8, hiv: false, dm: false, alcohol: false, ckd: false, rr_tb: true, retreatment: true, delay: 42, dbt: false, dist: 8 });
+      this.setPatientForm({ age: 34, bmi: 16.8, hiv: false, dm: false, alcohol: false, ckd: false, rr_tb: true, retreatment: true, delay: 42, dbt: false, dist: 8, adherence: 85, missed: 8, sputum: "positive" });
     });
     document.getElementById("btn-preset-lowrisk")?.addEventListener("click", () => {
-      this.setPatientForm({ age: 26, bmi: 21.5, hiv: false, dm: false, alcohol: false, ckd: false, rr_tb: false, retreatment: false, delay: 7, dbt: false, dist: 3 });
+      this.setPatientForm({ age: 26, bmi: 21.5, hiv: false, dm: false, alcohol: false, ckd: false, rr_tb: false, retreatment: false, delay: 7, dbt: false, dist: 3, adherence: 98, missed: 0, sputum: "converted" });
     });
   },
 
   setPatientForm: function(p) {
     const setCheck = (id, val) => { const el = document.getElementById(`input-${id}`); if (el) el.checked = Boolean(val); };
-    const setVal = (id, val) => { const el = document.getElementById(`input-${id}`); if (el) el.value = val; };
+    const setVal = (id, val) => { const el = document.getElementById(`input-${id}`); if (el && val !== undefined) el.value = val; };
 
     setVal("age", p.age);
     setVal("bmi", p.bmi);
@@ -270,6 +272,9 @@ window.App = {
     setVal("delay", p.delay);
     setCheck("dbt_unlinked", p.dbt);
     setVal("distance", p.dist);
+    setVal("adherence", p.adherence ?? 92);
+    setVal("missed-days", p.missed ?? 4);
+    setVal("sputum-m2", p.sputum ?? "converted");
 
     this.runClinicalScoring();
   },
@@ -286,7 +291,10 @@ window.App = {
       is_retreatment: document.getElementById("input-retreatment")?.checked || false,
       treatment_delay_days: parseFloat(document.getElementById("input-delay")?.value || 14),
       dbt_unlinked: document.getElementById("input-dbt_unlinked")?.checked || false,
-      distance_to_center_km: parseFloat(document.getElementById("input-distance")?.value || 5)
+      distance_to_center_km: parseFloat(document.getElementById("input-distance")?.value || 5),
+      adherence_pct: parseFloat(document.getElementById("input-adherence")?.value || 92),
+      consecutive_missed_days: parseInt(document.getElementById("input-missed-days")?.value || 4, 10),
+      month2_sputum_status: document.getElementById("input-sputum-m2")?.value || "converted"
     };
   },
 
@@ -304,6 +312,13 @@ window.App = {
       else res = MathEngine.evaluatePatientRisk(patient);
     } catch (e) {
       res = MathEngine.evaluatePatientRisk(patient);
+    }
+
+    if (!res.dice_counterfactuals) {
+      res.dice_counterfactuals = MathEngine.generateCounterfactuals(patient, res);
+    }
+    if (!res.survival_trajectory) {
+      res.survival_trajectory = MathEngine.predictSurvivalHazard(patient, res);
     }
 
     // Display Risk Tier Badge
@@ -329,8 +344,73 @@ window.App = {
     // Render SHAP Waterfall
     Charts.renderSHAPWaterfall("container-shap-waterfall", res.shap_attributions);
 
+    // Feature 2: Render DiCE Counterfactuals
+    this.renderDiCECounterfactuals(res.dice_counterfactuals);
+
+    // Feature 3: Render Longitudinal Survival & LTFU Hazard Curve
+    this.renderSurvivalTrajectory(res.survival_trajectory);
+
     // Render Care Bundles
     this.renderCareBundles(res.care_bundles);
+  },
+
+  renderDiCECounterfactuals: function(dice) {
+    const container = document.getElementById("container-dice-counterfactuals");
+    const badge = document.getElementById("dice-summary-badge");
+    if (!container || !dice) return;
+
+    if (badge) {
+      badge.innerText = `${dice.baseline_tier} → ${dice.counterfactual_tier} Risk (Success +${dice.total_success_gain_pct}%)`;
+    }
+
+    if (!dice.modifiable_levers || dice.modifiable_levers.length === 0) {
+      container.innerHTML = `<div class="p-2.5 rounded bg-emerald-950/30 border border-emerald-800/50 text-emerald-300">All modifiable clinical & nutritional parameters are already in their optimal protective state.</div>`;
+      return;
+    }
+
+    let html = `
+      <div class="p-2.5 rounded bg-sky-950/40 border border-sky-800/60 flex flex-wrap justify-between items-center gap-2 mb-2">
+        <span class="text-slate-200 font-medium">Combined Counterfactual Outcome Shift:</span>
+        <div class="flex space-x-3 font-mono text-[11px]">
+          <span class="text-emerald-400 font-bold">Success: ${dice.baseline_probabilities.treatment_success}% &rarr; ${dice.counterfactual_probabilities.treatment_success}%</span>
+          <span class="text-sky-300">Mortality: ${dice.baseline_probabilities.mortality_death}% &rarr; ${dice.counterfactual_probabilities.mortality_death}%</span>
+          <span class="text-amber-300">LTFU: ${dice.baseline_probabilities.loss_to_follow_up}% &rarr; ${dice.counterfactual_probabilities.loss_to_follow_up}%</span>
+        </div>
+      </div>
+    `;
+
+    html += dice.modifiable_levers.map(l => `
+      <div class="p-2.5 rounded bg-slate-900/80 border border-slate-800 flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+        <div>
+          <div class="font-semibold text-slate-100">${l.lever}</div>
+          <div class="text-[11px] text-slate-400"><span class="text-red-300">${l.from_state}</span> &rarr; <span class="text-emerald-300">${l.to_state}</span></div>
+        </div>
+        <div class="flex space-x-2 font-mono text-[11px] whitespace-nowrap">
+          <span class="px-2 py-0.5 rounded bg-emerald-950 text-emerald-400 border border-emerald-800">Death ${l.delta_death_pct}%</span>
+          <span class="px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">LTFU ${l.delta_ltfu_pct}%</span>
+        </div>
+      </div>
+    `).join("");
+
+    container.innerHTML = html;
+  },
+
+  renderSurvivalTrajectory: function(surv) {
+    if (!surv) return;
+    const hrBadge = document.getElementById("survival-hr-badge");
+    if (hrBadge) {
+      hrBadge.innerText = `LTFU HR: ${surv.dynamic_ltfu_hazard_ratio}x | Death HR: ${surv.dynamic_mortality_hazard_ratio}x`;
+    }
+    const alertEl = document.getElementById("survival-alert-banner");
+    if (alertEl) {
+      alertEl.innerText = surv.interruption_alert_message;
+      alertEl.className = `p-2.5 rounded text-xs font-semibold border ${
+        surv.interruption_alert_code.includes("RED") ? "bg-red-950/60 border-red-700 text-red-200" :
+        surv.interruption_alert_code.includes("AMBER") ? "bg-amber-950/60 border-amber-700 text-amber-200" :
+        "bg-emerald-950/40 border-emerald-800 text-emerald-200"
+      }`;
+    }
+    Charts.renderSurvivalHazardChart("chart-survival-hazard", surv);
   },
 
   renderCareBundles: function(bundles) {
@@ -439,10 +519,11 @@ window.App = {
     }
   },
 
-  // Batch Patient Triage Module
+  // Batch Patient Triage & Synthetic Cohort Generator Module (Feature 6)
   setupBatchTriage: function() {
     document.getElementById("btn-load-sample-batch")?.addEventListener("click", () => this.loadSampleBatch());
     document.getElementById("btn-export-batch-csv")?.addEventListener("click", () => this.exportBatchCSV());
+    document.getElementById("btn-generate-synthetic")?.addEventListener("click", () => this.generateSyntheticCohortAndTriage());
   },
 
   sampleBatchCohort: [
@@ -459,6 +540,35 @@ window.App = {
   ],
   latestTriagedList: [],
 
+  renderBatchTableRows: function(list) {
+    this.latestTriagedList = list || [];
+    const crit = this.latestTriagedList.filter(r => r.risk_tier === "Critical").length;
+    const high = this.latestTriagedList.filter(r => r.risk_tier === "High").length;
+
+    document.getElementById("batch-total").innerText = this.latestTriagedList.length;
+    document.getElementById("batch-critical").innerText = crit;
+    document.getElementById("batch-high").innerText = high;
+    document.getElementById("batch-low").innerText = this.latestTriagedList.length - crit - high;
+
+    const tbody = document.getElementById("table-batch-triage");
+    if (!tbody) return;
+    tbody.innerHTML = this.latestTriagedList.map(p => `
+      <tr class="border-b border-slate-800/60 hover:bg-slate-800/40">
+        <td class="p-3 font-mono text-sky-400 font-semibold">${p.id}</td>
+        <td class="p-3 font-medium text-slate-100">${p.name}</td>
+        <td class="p-3 text-slate-300">${p.age}y / ${p.district}</td>
+        <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${
+          p.risk_tier === 'Critical' ? 'badge-critical' :
+          p.risk_tier === 'High' ? 'badge-high' :
+          p.risk_tier === 'Moderate' ? 'badge-moderate' : 'badge-low'
+        }">${p.risk_tier}</span></td>
+        <td class="p-3 font-mono font-bold text-red-400">${p.mortality_pct}%</td>
+        <td class="p-3 font-mono font-bold text-amber-400">${p.ltfu_pct}%</td>
+        <td class="p-3 text-[11px] font-mono text-slate-300">${p.action_code}</td>
+      </tr>
+    `).join("");
+  },
+
   loadSampleBatch: async function() {
     try {
       const res = await fetch("/api/triage/batch", {
@@ -468,38 +578,46 @@ window.App = {
       });
       if (res.ok) {
         const data = await res.json();
-        this.latestTriagedList = data.triage_list;
-
-        document.getElementById("batch-total").innerText = data.total_triaged;
-        document.getElementById("batch-critical").innerText = data.critical_count;
-        document.getElementById("batch-high").innerText = data.high_count;
-        document.getElementById("batch-low").innerText = data.total_triaged - data.critical_count - data.high_count;
-
-        const tbody = document.getElementById("table-batch-triage");
-        tbody.innerHTML = data.triage_list.map(p => `
-          <tr class="border-b border-slate-800/60 hover:bg-slate-800/40">
-            <td class="p-3 font-mono text-sky-400 font-semibold">${p.id}</td>
-            <td class="p-3 font-medium text-slate-100">${p.name}</td>
-            <td class="p-3 text-slate-300">${p.age}y / ${p.district}</td>
-            <td class="p-3"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${
-              p.risk_tier === 'Critical' ? 'badge-critical' :
-              p.risk_tier === 'High' ? 'badge-high' :
-              p.risk_tier === 'Moderate' ? 'badge-moderate' : 'badge-low'
-            }">${p.risk_tier}</span></td>
-            <td class="p-3 font-mono font-bold text-red-400">${p.mortality_pct}%</td>
-            <td class="p-3 font-mono font-bold text-amber-400">${p.ltfu_pct}%</td>
-            <td class="p-3 text-[11px] font-mono text-slate-300">${p.action_code}</td>
-          </tr>
-        `).join("");
+        this.renderBatchTableRows(data.triage_list);
       }
     } catch (e) {
       console.warn("Batch triage API call failed:", e);
     }
   },
 
+  generateSyntheticCohortAndTriage: async function() {
+    const sampleSize = parseInt(document.getElementById("select-syn-size")?.value || 50, 10);
+    try {
+      const res = await fetch("/api/synthetic/generate", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: jsonBody({ sample_size: sampleSize, seed_offset: Math.floor(Math.random() * 200) + 50 })
+      });
+      if (res.ok) {
+        const data = await res.json();
+        const fidBox = document.getElementById("container-synthetic-fidelity");
+        if (fidBox && data.marginal_fidelity_table) {
+          fidBox.innerHTML = data.marginal_fidelity_table.map(f => `
+            <div class="p-2.5 rounded bg-slate-900/90 border border-slate-800 text-center">
+              <div class="text-[10px] text-slate-400 truncate" title="${f.feature}">${f.feature}</div>
+              <div class="font-mono font-bold text-emerald-400 text-sm mt-0.5">${f.synthetic_generated_pct}%</div>
+              <div class="text-[10px] text-slate-500">Target: ${f.thesis_target_pct}%</div>
+            </div>
+          `).join("");
+        }
+        if (data.synthetic_records) {
+          const sorted = data.synthetic_records.slice().sort((a, b) => b.mortality_pct - a.mortality_pct);
+          this.renderBatchTableRows(sorted);
+        }
+      }
+    } catch (e) {
+      console.warn("Synthetic generation error:", e);
+    }
+  },
+
   renderBatchView: function() {
     if (this.latestTriagedList.length === 0) {
-      this.loadSampleBatch();
+      this.generateSyntheticCohortAndTriage();
     }
   },
 
@@ -708,6 +826,111 @@ window.App = {
         data.risk_tier.includes("High") ? "badge-high" :
         data.risk_tier.includes("Moderate") ? "badge-moderate" : "badge-low"
       }`;
+    }
+  },
+
+  // Features 4 & 5: Multi-Model Forecasting, Structural Break & AI Validation Workbench
+  setupAIValidationModule: function() {
+    document.getElementById("select-forecast-indicator")?.addEventListener("change", () => this.runForecastStudio());
+    document.getElementById("select-validation-model")?.addEventListener("change", () => this.runModelValidation());
+    document.getElementById("slider-bound-2025")?.addEventListener("input", (e) => {
+      document.getElementById("val-bound-slider-label").innerText = `${Number(e.target.value).toFixed(2)}%`;
+      this.run2025CohortBounding();
+    });
+  },
+
+  renderAIValidationView: function() {
+    this.runForecastStudio();
+    this.runModelValidation();
+    this.run2025CohortBounding();
+  },
+
+  runForecastStudio: async function() {
+    const ind = document.getElementById("select-forecast-indicator")?.value || "relapses";
+    try {
+      const res = await fetch(`/api/forecast?indicator=${encodeURIComponent(ind)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const fc = data.forecast;
+        if (fc) {
+          Charts.renderForecastChart("chart-forecast-trajectory", fc);
+          document.getElementById("fc-ols-eq").innerText = fc.metrics.thesis_ols_equation;
+          document.getElementById("fc-ols-r2").innerText = fc.metrics.ols_r_squared;
+          document.getElementById("fc-ols-p").innerText = fc.metrics.ols_p_value;
+          document.getElementById("fc-pw-r2").innerText = fc.metrics.piecewise_r_squared;
+          document.getElementById("fc-rmse").innerText = fc.metrics.rmse.toLocaleString();
+          document.getElementById("fc-mape").innerText = `${fc.metrics.mape_pct}%`;
+          document.getElementById("fc-2030-pt").innerText = fc.metrics.forecast_2030_point.toLocaleString();
+          document.getElementById("fc-2030-ci").innerText = fc.metrics.forecast_2030_ci;
+          document.getElementById("fc-break-note").innerText = fc.metrics.structural_break_note;
+        }
+        if (data.correlations && data.correlations.key_pairs) {
+          const cBox = document.getElementById("container-corr-highlights");
+          if (cBox) {
+            cBox.innerHTML = data.correlations.key_pairs.map(kp => `
+              <div class="flex justify-between items-center border-b border-slate-800/60 pb-1">
+                <span>${kp.pair}</span>
+                <span class="font-mono font-bold ${kp.r >= 0 ? 'text-emerald-400' : 'text-sky-300'}">r=${kp.r} <span class="text-[10px] text-slate-500">${kp.ci_95}</span></span>
+              </div>
+            `).join("");
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Forecast API fetch error:", e);
+    }
+  },
+
+  runModelValidation: async function() {
+    const modelId = document.getElementById("select-validation-model")?.value || "catboost_calibrated";
+    try {
+      const res = await fetch(`/api/validation/models?model=${encodeURIComponent(modelId)}`);
+      if (res.ok) {
+        const data = await res.json();
+        const m = data.validation.selected_model;
+        if (m) {
+          document.getElementById("val-macro-auroc").innerText = m.macro_auroc.toFixed(3);
+          document.getElementById("val-temp-auroc").innerText = m.temporal_auroc_2024_25.toFixed(3);
+          document.getElementById("val-macro-auprc").innerText = m.macro_auprc.toFixed(3);
+          document.getElementById("val-brier").innerText = m.brier_score.toFixed(3);
+          document.getElementById("val-ece").innerText = m.ece.toFixed(3);
+
+          Charts.renderCalibrationChart("chart-calibration-curve", m.calibration_bins);
+
+          const tbody = document.getElementById("table-validation-classes");
+          if (tbody && m.class_metrics) {
+            tbody.innerHTML = m.class_metrics.map(c => `
+              <tr class="hover:bg-slate-800/30">
+                <td class="p-2 font-medium text-slate-200">${c.outcome}</td>
+                <td class="p-2 font-mono font-bold text-emerald-400">${c.auroc.toFixed(3)}</td>
+                <td class="p-2 font-mono text-sky-300">${c.auprc.toFixed(3)}</td>
+                <td class="p-2 font-mono text-slate-300">${(c.sensitivity * 100).toFixed(1)}% / ${(c.specificity * 100).toFixed(1)}%</td>
+              </tr>
+            `).join("");
+          }
+        }
+      }
+    } catch (e) {
+      console.warn("Validation API fetch error:", e);
+    }
+  },
+
+  run2025CohortBounding: async function() {
+    const assumedTsr = parseFloat(document.getElementById("slider-bound-2025")?.value || 90.66);
+    try {
+      const res = await fetch("/api/validation/bound-2025", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: jsonBody({ assumed_pending_tsr_pct: assumedTsr })
+      });
+      if (res.ok) {
+        const b = await res.json();
+        document.getElementById("bound-final-delta").innerText = b.bounded_final_delta_2025.toFixed(4);
+        document.getElementById("bound-final-cured").innerText = b.projected_final_cured_2025.toLocaleString();
+        document.getElementById("bound-final-phi").innerText = b.bounded_final_phi_2025.toFixed(4);
+      }
+    } catch (e) {
+      console.warn("2025 cohort bounding error:", e);
     }
   },
 

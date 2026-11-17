@@ -23,6 +23,9 @@ from core.risk_engine import PatientRiskEngine
 from core.resource_engine import ResourceOptimizationEngine
 from core.care_gap_engine import CareGapEngine
 from core.pharmacist_engine import PharmacistEngine
+from core.forecast_engine import ForecastEngine
+from core.validation_engine import ModelValidationEngine
+from core.synthetic_engine import SyntheticCohortEngine
 
 PORT = 8000
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
@@ -40,6 +43,9 @@ risk_engine = PatientRiskEngine()
 resource_engine = ResourceOptimizationEngine()
 care_gap_engine = CareGapEngine(EMPIRICAL_DATA)
 pharmacist_engine = PharmacistEngine()
+forecast_engine = ForecastEngine(EMPIRICAL_DATA)
+validation_engine = ModelValidationEngine()
+synthetic_engine = SyntheticCohortEngine()
 
 # In-memory storage for SUS/MARS evaluations
 if os.path.exists(EVAL_FILE):
@@ -152,6 +158,26 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
             self.wfile.write(json.dumps(care_gap_engine.get_care_cascade_funnel()).encode("utf-8"))
             return
 
+        elif path == "/api/forecast":
+            qs = urllib.parse.parse_qs(url_parsed.query)
+            ind = qs.get("indicator", ["relapses"])[0]
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "forecast": forecast_engine.forecast_indicator(ind),
+                "correlations": forecast_engine.get_correlation_matrix()
+            }).encode("utf-8"))
+            return
+
+        elif path == "/api/validation/models":
+            qs = urllib.parse.parse_qs(url_parsed.query)
+            mod_id = qs.get("model", ["catboost_calibrated"])[0]
+            self._set_headers()
+            self.wfile.write(json.dumps({
+                "validation": validation_engine.get_validation_report(mod_id),
+                "partial_cohort_2025": validation_engine.bound_2025_partial_cohort(90.66)
+            }).encode("utf-8"))
+            return
+
         elif path == "/api/evaluation/stats":
             self._set_headers()
             avg_sus = sum(e["sus_score"] for e in EVALUATIONS) / max(1, len(EVALUATIONS))
@@ -203,6 +229,35 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/api/predict/patient-risk":
             patient = body.get("patient", body)
             res = risk_engine.predict_patient_risk(patient)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/predict/counterfactuals":
+            patient = body.get("patient", body)
+            res = risk_engine.generate_counterfactuals(patient)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/predict/survival-hazard":
+            patient = body.get("patient", body)
+            res = risk_engine.predict_survival_hazard(patient)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/validation/bound-2025":
+            assumed_tsr = float(body.get("assumed_pending_tsr_pct", 90.66))
+            res = validation_engine.bound_2025_partial_cohort(assumed_tsr)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/synthetic/generate":
+            n = int(body.get("sample_size", 50))
+            seed = int(body.get("seed_offset", 100))
+            res = synthetic_engine.generate_synthetic_cohort(n, seed)
             self._set_headers()
             self.wfile.write(json.dumps(res).encode("utf-8"))
             return

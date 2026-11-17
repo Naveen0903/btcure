@@ -422,6 +422,275 @@ window.Charts = {
       ctx.fillText(item.label, lx + 11, 17);
       lx += ctx.measureText(item.label).width + 24;
     });
+  },
+
+  // 7. Feature 3: Longitudinal 6-Month Survival & LTFU Hazard Curve
+  renderSurvivalHazardChart: function(canvasId, survival) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !survival || !survival.months) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 48, padRight = 25, padTop = 30, padBottom = 38;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    // Grid (0% to 100%)
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    for (let i = 0; i <= 5; i++) {
+      const pct = i * 20;
+      const y = padTop + chartH - (pct / 100) * chartH;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(width - padRight, y);
+      ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(`${pct}%`, padLeft - 6, y + 3);
+    }
+
+    const months = survival.months;
+    ctx.textAlign = "center";
+    months.forEach((m, idx) => {
+      const x = padLeft + (idx / (months.length - 1)) * chartW;
+      ctx.fillText(m.split(" ")[0], x, height - padBottom + 16);
+    });
+
+    const drawSeries = (arr, color) => {
+      if (!arr) return;
+      ctx.strokeStyle = color;
+      ctx.lineWidth = 2.5;
+      ctx.beginPath();
+      arr.forEach((v, idx) => {
+        const x = padLeft + (idx / (arr.length - 1)) * chartW;
+        const y = padTop + chartH - (v / 100) * chartH;
+        if (idx === 0) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      });
+      ctx.stroke();
+      arr.forEach((v, idx) => {
+        const x = padLeft + (idx / (arr.length - 1)) * chartW;
+        const y = padTop + chartH - (v / 100) * chartH;
+        ctx.fillStyle = color;
+        ctx.beginPath();
+        ctx.arc(x, y, 3.5, 0, Math.PI * 2);
+        ctx.fill();
+      });
+    };
+
+    drawSeries(survival.retention_survival_pct, "#22c55e");
+    drawSeries(survival.cumulative_ltfu_hazard_pct, "#f59e0b");
+    drawSeries(survival.cumulative_mortality_hazard_pct, "#ef4444");
+
+    // Legend
+    const leg = [
+      { label: "Event-Free Retention S(t)", color: "#22c55e" },
+      { label: "LTFU Hazard", color: "#f59e0b" },
+      { label: "Mortality Hazard", color: "#ef4444" }
+    ];
+    let lx = padLeft;
+    ctx.font = "10px sans-serif";
+    leg.forEach(item => {
+      ctx.fillStyle = item.color;
+      ctx.fillRect(lx, 10, 10, 10);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.textAlign = "left";
+      ctx.fillText(item.label, lx + 14, 18);
+      lx += ctx.measureText(item.label).width + 26;
+    });
+  },
+
+  // 8. Feature 4: Multi-Model Time-Series Forecast & Structural Break Chart (2021-2030)
+  renderForecastChart: function(canvasId, fc) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !fc || !fc.years) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 65, padRight = 25, padTop = 32, padBottom = 38;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    const allVals = [
+      ...(fc.ols_trajectory || []),
+      ...(fc.piecewise_trajectory || []),
+      ...(fc.ci_95_upper || []),
+      ...(fc.ci_95_lower || []),
+      ...(fc.observed_2021_2025 || []).filter(v => v !== null)
+    ];
+    const minVal = Math.max(0, Math.floor(Math.min(...allVals) * 0.85));
+    const maxVal = Math.ceil(Math.max(...allVals) * 1.10);
+    const range = Math.max(100, maxVal - minVal);
+
+    const toX = idx => padLeft + (idx / (fc.years.length - 1)) * chartW;
+    const toY = val => padTop + chartH - ((val - minVal) / range) * chartH;
+
+    // Grid
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    for (let i = 0; i <= 4; i++) {
+      const v = minVal + (range / 4) * i;
+      const y = toY(v);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(width - padRight, y);
+      ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(Math.round(v).toLocaleString(), padLeft - 6, y + 3);
+    }
+
+    // X Axis Years
+    ctx.textAlign = "center";
+    fc.years.forEach((yr, idx) => {
+      ctx.fillText(yr, toX(idx), height - padBottom + 16);
+    });
+
+    // 2024 Structural Break Vertical Marker
+    const breakX = toX(3);
+    ctx.strokeStyle = "rgba(245, 158, 11, 0.35)";
+    ctx.setLineDash([3, 3]);
+    ctx.beginPath();
+    ctx.moveTo(breakX, padTop);
+    ctx.lineTo(breakX, padTop + chartH);
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // 95% Confidence Band (2025-2030)
+    if (fc.ci_95_upper && fc.ci_95_lower) {
+      ctx.fillStyle = "rgba(34, 197, 94, 0.14)";
+      ctx.beginPath();
+      for (let i = 4; i < fc.years.length; i++) {
+        const x = toX(i);
+        const y = toY(fc.ci_95_upper[i]);
+        if (i === 4) ctx.moveTo(x, y);
+        else ctx.lineTo(x, y);
+      }
+      for (let i = fc.years.length - 1; i >= 4; i--) {
+        ctx.lineTo(toX(i), toY(fc.ci_95_lower[i]));
+      }
+      ctx.closePath();
+      ctx.fill();
+    }
+
+    // OLS Dashed Line
+    ctx.strokeStyle = "#94a3b8";
+    ctx.lineWidth = 1.8;
+    ctx.setLineDash([5, 4]);
+    ctx.beginPath();
+    fc.ols_trajectory.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(toX(i), toY(v));
+      else ctx.lineTo(toX(i), toY(v));
+    });
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Piecewise Structural Break Line
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    fc.piecewise_trajectory.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(toX(i), toY(v));
+      else ctx.lineTo(toX(i), toY(v));
+    });
+    ctx.stroke();
+
+    // Holt-ARIMA Damped Line
+    ctx.strokeStyle = "#22c55e";
+    ctx.lineWidth = 2.4;
+    ctx.beginPath();
+    fc.arima_trajectory.forEach((v, i) => {
+      if (i === 0) ctx.moveTo(toX(i), toY(v));
+      else ctx.lineTo(toX(i), toY(v));
+    });
+    ctx.stroke();
+
+    // Observed 2021-2025 Points
+    fc.observed_2021_2025.forEach((v, i) => {
+      if (v === null) return;
+      ctx.fillStyle = "#f8fafc";
+      ctx.beginPath();
+      ctx.arc(toX(i), toY(v), 4.5, 0, Math.PI * 2);
+      ctx.fill();
+    });
+
+    // Legend
+    const leg = [
+      { label: "Observed (21-25)", color: "#f8fafc" },
+      { label: "Standard OLS", color: "#94a3b8" },
+      { label: "Piecewise (2024 Break)", color: "#38bdf8" },
+      { label: "ARIMA + 95% CI", color: "#22c55e" }
+    ];
+    let lx = padLeft;
+    ctx.font = "10px sans-serif";
+    leg.forEach(item => {
+      ctx.fillStyle = item.color;
+      ctx.fillRect(lx, 10, 10, 10);
+      ctx.fillStyle = "#e2e8f0";
+      ctx.textAlign = "left";
+      ctx.fillText(item.label, lx + 14, 18);
+      lx += ctx.measureText(item.label).width + 24;
+    });
+  },
+
+  // 9. Feature 5: 10-Bin Reliability Calibration Diagram
+  renderCalibrationChart: function(canvasId, bins) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !bins || bins.length === 0) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 50, padRight = 25, padTop = 28, padBottom = 38;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    const toX = p => padLeft + p * chartW;
+    const toY = p => padTop + chartH - p * chartH;
+
+    // Grid & Diagonal Ideal Calibration Line (y = x)
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    for (let i = 0; i <= 5; i++) {
+      const p = i * 0.2;
+      ctx.beginPath();
+      ctx.moveTo(padLeft, toY(p));
+      ctx.lineTo(width - padRight, toY(p));
+      ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(p.toFixed(1), padLeft - 6, toY(p) + 3);
+      ctx.textAlign = "center";
+      ctx.fillText(p.toFixed(1), toX(p), height - padBottom + 16);
+    }
+
+    // Diagonal Ideal Line
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.5)";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(toX(0), toY(0));
+    ctx.lineTo(toX(1), toY(1));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Calibration Curve
+    ctx.strokeStyle = "#38bdf8";
+    ctx.lineWidth = 2.5;
+    ctx.beginPath();
+    bins.forEach((b, i) => {
+      const x = toX(b.predicted_prob);
+      const y = toY(b.observed_freq);
+      if (i === 0) ctx.moveTo(x, y);
+      else ctx.lineTo(x, y);
+    });
+    ctx.stroke();
+
+    bins.forEach(b => {
+      ctx.fillStyle = "#22c55e";
+      ctx.beginPath();
+      ctx.arc(toX(b.predicted_prob), toY(b.observed_freq), 4, 0, Math.PI * 2);
+      ctx.fill();
+    });
   }
 };
 

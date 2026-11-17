@@ -305,7 +305,7 @@ window.MathEngine = {
       code = "YELLOW_FLAG_ENHANCED_SURVEILLANCE";
     }
 
-    return {
+    const baseResult = {
       risk_tier: tier,
       risk_color: color,
       action_code: code,
@@ -317,6 +317,150 @@ window.MathEngine = {
         secondary_relapse: Number((pRelapse * 100).toFixed(1))
       },
       shap_attributions: shap.sort((a, b) => (Math.abs(b.impact_death) + Math.abs(b.impact_ltfu)) - (Math.abs(a.impact_death) + Math.abs(a.impact_ltfu)))
+    };
+
+    if (!p._skip_extensions) {
+      baseResult.dice_counterfactuals = this.generateCounterfactuals(p, baseResult);
+      baseResult.survival_trajectory = this.predictSurvivalHazard(p, baseResult);
+    }
+    return baseResult;
+  },
+
+  // Feature 2 Client-Side Fallback: DiCE Counterfactual Explanations
+  generateCounterfactuals: function(p, baseRes) {
+    const baseProbs = baseRes.probabilities;
+    const levers = [];
+    const optP = Object.assign({}, p, { _skip_extensions: true });
+
+    if (Number(p.bmi || 17.5) < 18.5) {
+      const cf = this.evaluatePatientRisk(Object.assign({}, p, { bmi: 19.0, _skip_extensions: true })).probabilities;
+      levers.push({
+        lever: "Nutritional Rehabilitation (Raise BMI to >= 18.5 kg/m²)",
+        from_state: `BMI ${Number(p.bmi || 17.5).toFixed(1)} kg/m²`,
+        to_state: "BMI 19.0 kg/m² (Therapeutic Refeeding)",
+        delta_death_pct: Number((cf.mortality_death - baseProbs.mortality_death).toFixed(1)),
+        delta_ltfu_pct: Number((cf.loss_to_follow_up - baseProbs.loss_to_follow_up).toFixed(1)),
+        delta_success_pct: Number((cf.treatment_success - baseProbs.treatment_success).toFixed(1))
+      });
+      optP.bmi = 19.0;
+    }
+    if (p.dbt_unlinked) {
+      const cf = this.evaluatePatientRisk(Object.assign({}, p, { dbt_unlinked: false, _skip_extensions: true })).probabilities;
+      levers.push({
+        lever: "Link Nikshay Poshan Direct Benefit Transfer (INR 1,000/mo)",
+        from_state: "DBT Pending / Unlinked",
+        to_state: "Same-Day Bank Aadhaar Seeding",
+        delta_death_pct: Number((cf.mortality_death - baseProbs.mortality_death).toFixed(1)),
+        delta_ltfu_pct: Number((cf.loss_to_follow_up - baseProbs.loss_to_follow_up).toFixed(1)),
+        delta_success_pct: Number((cf.treatment_success - baseProbs.treatment_success).toFixed(1))
+      });
+      optP.dbt_unlinked = false;
+    }
+    if (p.tobacco_or_alcohol) {
+      const cf = this.evaluatePatientRisk(Object.assign({}, p, { tobacco_or_alcohol: false, _skip_extensions: true })).probabilities;
+      levers.push({
+        lever: "Brief Alcohol/Tobacco Cessation & Peer Counseling",
+        from_state: "Active Substance Use",
+        to_state: "Enrolled in De-addiction Support",
+        delta_death_pct: Number((cf.mortality_death - baseProbs.mortality_death).toFixed(1)),
+        delta_ltfu_pct: Number((cf.loss_to_follow_up - baseProbs.loss_to_follow_up).toFixed(1)),
+        delta_success_pct: Number((cf.treatment_success - baseProbs.treatment_success).toFixed(1))
+      });
+      optP.tobacco_or_alcohol = false;
+    }
+    if (Number(p.distance_to_center_km || 5) > 10) {
+      const cf = this.evaluatePatientRisk(Object.assign({}, p, { distance_to_center_km: 2, _skip_extensions: true })).probabilities;
+      levers.push({
+        lever: "Doorstep ASHA DOTS / Video Observed Therapy (VOT)",
+        from_state: `${p.distance_to_center_km} km Transit Barrier`,
+        to_state: "Doorstep Refill (< 2 km equivalent)",
+        delta_death_pct: Number((cf.mortality_death - baseProbs.mortality_death).toFixed(1)),
+        delta_ltfu_pct: Number((cf.loss_to_follow_up - baseProbs.loss_to_follow_up).toFixed(1)),
+        delta_success_pct: Number((cf.treatment_success - baseProbs.treatment_success).toFixed(1))
+      });
+      optP.distance_to_center_km = 2;
+    }
+    if (Number(p.treatment_delay_days || 14) > 21) {
+      const cf = this.evaluatePatientRisk(Object.assign({}, p, { treatment_delay_days: 7, _skip_extensions: true })).probabilities;
+      levers.push({
+        lever: "Fast-Track CBNAAT Stabilization & Intensive Monitoring",
+        from_state: `${p.treatment_delay_days} Days Diagnostic Lag`,
+        to_state: "Rapid Stabilization Protocol (<= 7d)",
+        delta_death_pct: Number((cf.mortality_death - baseProbs.mortality_death).toFixed(1)),
+        delta_ltfu_pct: Number((cf.loss_to_follow_up - baseProbs.loss_to_follow_up).toFixed(1)),
+        delta_success_pct: Number((cf.treatment_success - baseProbs.treatment_success).toFixed(1))
+      });
+      optP.treatment_delay_days = 7;
+    }
+
+    const optRes = this.evaluatePatientRisk(optP);
+    const optProbs = optRes.probabilities;
+    return {
+      baseline_tier: baseRes.risk_tier,
+      counterfactual_tier: optRes.risk_tier,
+      baseline_probabilities: baseProbs,
+      counterfactual_probabilities: optProbs,
+      total_mortality_reduction_pct: Number((baseProbs.mortality_death - optProbs.mortality_death).toFixed(1)),
+      total_ltfu_reduction_pct: Number((baseProbs.loss_to_follow_up - optProbs.loss_to_follow_up).toFixed(1)),
+      total_success_gain_pct: Number((optProbs.treatment_success - baseProbs.treatment_success).toFixed(1)),
+      modifiable_levers: levers
+    };
+  },
+
+  // Feature 3 Client-Side Fallback: Longitudinal 6-Month Survival & LTFU Hazard
+  predictSurvivalHazard: function(p, baseRes) {
+    const probs = baseRes.probabilities;
+    const baseDeath = probs.mortality_death / 100.0;
+    const baseLtfu = probs.loss_to_follow_up / 100.0;
+
+    const adherence = Number(p.adherence_pct ?? 92.0);
+    const missedDays = Number(p.consecutive_missed_days ?? 4);
+    const sputumM2 = String(p.month2_sputum_status || "converted").toLowerCase();
+
+    let ltfuMult = 1.0, deathMult = 1.0;
+    if (adherence < 80) { ltfuMult *= 1.85; deathMult *= 1.25; }
+    else if (adherence < 90) { ltfuMult *= 1.35; }
+    if (missedDays >= 14) ltfuMult *= 2.40;
+    else if (missedDays >= 7) ltfuMult *= 1.55;
+    if (sputumM2 === "positive") { deathMult *= 1.50; ltfuMult *= 1.30; }
+
+    const adjDeath = Math.min(0.65, baseDeath * deathMult);
+    const adjLtfu = Math.min(0.75, baseLtfu * ltfuMult);
+
+    const dWeights = [0.0, 0.28, 0.462, 0.64, 0.78, 0.90, 1.00];
+    const lWeights = [0.0, 0.14, 0.35, 0.62, 0.82, 0.93, 1.00];
+    const months = ["M0 (Reg)", "M1 (30d)", "M2 (Intensive)", "M3 (90d)", "M4 (120d)", "M5 (150d)", "M6 (End)"];
+
+    const retention = [], mortCurve = [], ltfuCurve = [];
+    for (let i = 0; i < 7; i++) {
+      const cd = Number((adjDeath * dWeights[i] * 100).toFixed(1));
+      const cl = Number((adjLtfu * lWeights[i] * 100).toFixed(1));
+      mortCurve.push(cd);
+      ltfuCurve.push(cl);
+      retention.push(Number(Math.max(5.0, 100.0 - cd - cl).toFixed(1)));
+    }
+
+    const daysLeft = Math.max(0, 60 - missedDays);
+    let code = "GREEN_ON_TRACK";
+    let msg = `ON TRACK: ${adherence}% adherence (${daysLeft}d safety buffer to 60-day LTFU threshold).`;
+    if (missedDays >= 14 || adjLtfu >= 0.25) {
+      code = "RED_PREEMPTIVE_LTFU_ALERT";
+      msg = `CRITICAL: ${missedDays} consecutive missed days (${daysLeft}d before 60-day LTFU cutoff). Dispatch STS/ASHA home visit within 24h.`;
+    } else if (missedDays >= 5 || adherence < 85) {
+      code = "AMBER_ADHERENCE_DRIFT";
+      msg = `WARNING: Adherence ${adherence}% (${missedDays}d missed). Trigger automated 99DOTS IVR call & family counsellor check.`;
+    }
+
+    return {
+      months: months,
+      retention_survival_pct: retention,
+      cumulative_mortality_hazard_pct: mortCurve,
+      cumulative_ltfu_hazard_pct: ltfuCurve,
+      dynamic_ltfu_hazard_ratio: Number(ltfuMult.toFixed(2)),
+      dynamic_mortality_hazard_ratio: Number(deathMult.toFixed(2)),
+      days_to_60d_ltfu_threshold: daysLeft,
+      interruption_alert_code: code,
+      interruption_alert_message: msg
     };
   },
 

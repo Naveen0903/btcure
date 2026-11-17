@@ -67,6 +67,10 @@
           <i class="fa-solid fa-magnifying-glass-chart"></i>
           <span>AI Care-Gap & O/E</span>
         </button>
+        <button id="nav-ai-validation" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-timeline"></i>
+          <span>Forecasts & AI Validation</span>
+        </button>
         <button id="nav-districts" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
           <i class="fa-solid fa-map-location-dot"></i>
           <span>31-District Surveillance</span>
@@ -423,6 +427,29 @@
                 <span class="text-amber-300">Nikshay Poshan DBT Unlinked / Delayed</span>
               </label>
             </div>
+
+            <!-- Longitudinal Mid-Treatment Survival & Adherence Inputs (Feature 3) -->
+            <div class="space-y-2.5 pt-2.5 border-t border-slate-800">
+              <div class="text-[11px] font-bold text-cyan-300 uppercase">Longitudinal Follow-Up (99DOTS / Month-2)</div>
+              <div class="grid grid-cols-2 gap-2">
+                <div>
+                  <label class="text-slate-400 block mb-1">Adherence (%)</label>
+                  <input id="input-adherence" type="number" value="92" min="20" max="100" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 font-mono text-slate-100">
+                </div>
+                <div>
+                  <label class="text-slate-400 block mb-1">Missed Days (Consec)</label>
+                  <input id="input-missed-days" type="number" value="4" min="0" max="60" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 font-mono text-slate-100">
+                </div>
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">Month-2 Sputum Conversion Status</label>
+                <select id="input-sputum-m2" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1 text-slate-100">
+                  <option value="converted">Converted Negative (Favorable)</option>
+                  <option value="pending">Pending Intensive Phase</option>
+                  <option value="positive">Persistent Smear/CBNAAT Positive</option>
+                </select>
+              </div>
+            </div>
           </div>
         </div>
 
@@ -479,6 +506,39 @@
             <p class="text-[11px] text-slate-400 mb-3">Quantitative contribution of clinical markers toward mortality and LTFU risk</p>
             <div id="container-shap-waterfall">
               <!-- Dynamically Populated -->
+            </div>
+          </div>
+
+          <!-- Feature 2: Counterfactual "What-If" Patient Explanations (DiCE) -->
+          <div class="glass-card p-4 space-y-3">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+              <div>
+                <h4 class="font-bold text-xs text-slate-100">Counterfactual "What-If" Prescription Engine (DiCE)</h4>
+                <p class="text-[11px] text-slate-400">Minimum modifiable clinical interventions required to downgrade patient risk tier</p>
+              </div>
+              <div id="dice-summary-badge" class="text-xs font-mono px-2.5 py-1 rounded bg-emerald-950/60 border border-emerald-700 text-emerald-300">
+                Counterfactual Target: Low Risk
+              </div>
+            </div>
+            <div id="container-dice-counterfactuals" class="space-y-2 text-xs">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+
+          <!-- Feature 3: Longitudinal 6-Month CoxPH / RSF Survival & LTFU Hazard Curve -->
+          <div class="glass-card p-4 space-y-3">
+            <div class="flex flex-wrap justify-between items-center gap-2">
+              <div>
+                <h4 class="font-bold text-xs text-slate-100">Longitudinal 6-Month Survival & Pre-Emptive 60-Day LTFU Hazard Curve</h4>
+                <p class="text-[11px] text-slate-400">CoxPH / Random Survival Forest trajectory conditioned on 99DOTS missed doses & Month-2 sputum conversion</p>
+              </div>
+              <span id="survival-hr-badge" class="text-[11px] font-mono px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800">LTFU HR: 1.00x</span>
+            </div>
+            <div id="survival-alert-banner" class="p-2.5 rounded bg-slate-900 border border-slate-700 text-xs text-slate-200 font-medium">
+              ON TRACK: 92% adherence (56d safety buffer to 60-day LTFU threshold).
+            </div>
+            <div class="w-full h-56">
+              <canvas id="chart-survival-hazard" class="w-full h-full"></canvas>
             </div>
           </div>
 
@@ -617,9 +677,37 @@
     </section>
 
     <!-- ========================================== -->
-    <!-- VIEW: BATCH PATIENT TRIAGE & NIKSHAY COHORT -->
+    <!-- VIEW: BATCH PATIENT TRIAGE & SYNTHETIC COHORT GENERATOR -->
     <!-- ========================================== -->
     <section id="view-batch" class="tab-view hidden space-y-6">
+      <!-- Feature 6: Marginal-Calibrated Synthetic Patient Cohort Generator (UC-03) -->
+      <div class="glass-card p-4 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-base text-slate-100">Marginal-Calibrated Synthetic Patient Cohort Generator (Copula / CTGAN)</h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">UC-03 • N = 3,72,863 Marginals</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Generates SHA-256 de-identified virtual patients constrained by exact Karnataka 2021–2025 NTEP joint distributions</p>
+          </div>
+          <div class="flex items-center space-x-2 text-xs">
+            <select id="select-syn-size" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-slate-100 font-mono">
+              <option value="25">25 Synthetic Patients</option>
+              <option value="50" selected>50 Synthetic Patients</option>
+              <option value="100">100 Synthetic Patients</option>
+              <option value="200">200 Synthetic Patients</option>
+            </select>
+            <button id="btn-generate-synthetic" class="px-3 py-1.5 bg-emerald-600 hover:bg-emerald-500 text-white rounded font-semibold shadow transition">
+              Generate & Triage Synthetic Cohort
+            </button>
+          </div>
+        </div>
+
+        <div id="container-synthetic-fidelity" class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-7 gap-2 text-xs">
+          <!-- Populated dynamically with Target vs Generated Marginal Fidelity cards -->
+        </div>
+      </div>
+
       <div class="glass-card p-4 space-y-4">
         <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
           <div>
@@ -628,7 +716,7 @@
           </div>
           <div class="flex items-center space-x-2">
             <button id="btn-load-sample-batch" class="px-3 py-1.5 bg-sky-700 hover:bg-sky-600 text-white rounded text-xs font-semibold shadow transition">
-              Load 10 Nikshay Patients
+              Load 10 Reference Patients
             </button>
             <button id="btn-export-batch-csv" class="px-3 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 border border-slate-700 rounded text-xs font-semibold transition">
               Export Worklist (CSV)
@@ -854,6 +942,193 @@
               <!-- Populated dynamically -->
             </tbody>
           </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
+    <!-- VIEW: AI FORECASTING, STRUCTURAL BREAK & MODEL VALIDATION (OBJECTIVES 8 & 9) -->
+    <!-- ========================================== -->
+    <section id="view-ai-validation" class="tab-view hidden space-y-6">
+      <!-- Feature 4: AI Time-Series Forecasting & 2024 Structural Break Studio -->
+      <div class="glass-card p-4 space-y-4">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3 border-b border-slate-800 pb-3">
+          <div>
+            <div class="flex items-center space-x-2">
+              <h3 class="font-bold text-base text-slate-100">Multi-Model Time-Series Forecasting & 2024 Structural Break Studio (2021–2030)</h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-sky-950 text-sky-300 border border-sky-800 font-mono">Objective 8 • Limitation M9</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Comparing Standard OLS against Piecewise Segmented Breakpoint Regression (2024 DR-TB Elimination) and Holt-ARIMA with 95% CI</p>
+          </div>
+          <div class="flex items-center space-x-2 text-xs">
+            <label class="text-slate-400">Indicator:</label>
+            <select id="select-forecast-indicator" class="bg-slate-900 border border-slate-700 rounded px-3 py-1.5 text-slate-100 font-semibold">
+              <option value="relapses" selected>Post-Treatment Relapses (RR / &phi;)</option>
+              <option value="deaths">On-Treatment Deaths (DT / &lambda;)</option>
+              <option value="cured_success">Recovered / Cured Patients (RC)</option>
+              <option value="notifications">Annual TB Notifications (NC)</option>
+              <option value="treatment_initiated">Treatment Initiated (TI)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          <div class="lg:col-span-2">
+            <div class="w-full h-64">
+              <canvas id="chart-forecast-trajectory" class="w-full h-full"></canvas>
+            </div>
+          </div>
+
+          <div class="space-y-2.5 text-xs">
+            <div class="p-3 rounded bg-slate-900/80 border border-slate-800 space-y-1.5">
+              <div class="text-[10px] text-slate-400 uppercase">Thesis OLS Linear Equation</div>
+              <div id="fc-ols-eq" class="font-mono font-bold text-sky-400 text-sm">Y = 5876.8 + (-1021.7)X</div>
+              <div class="flex justify-between text-[11px] pt-1">
+                <span class="text-slate-400">Standard OLS R²: <strong id="fc-ols-r2" class="text-slate-200">0.732</strong> (p=<span id="fc-ols-p">0.064</span>)</span>
+                <span class="text-emerald-400">Piecewise R²: <strong id="fc-pw-r2">0.964</strong></span>
+              </div>
+              <div class="flex justify-between text-[11px]">
+                <span class="text-slate-400">RMSE: <strong id="fc-rmse" class="text-slate-200">--</strong></span>
+                <span class="text-slate-400">MAPE: <strong id="fc-mape" class="text-slate-200">--</strong></span>
+              </div>
+            </div>
+
+            <div class="p-3 rounded bg-slate-900/80 border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">2030 ARIMA Point Forecast &amp; 95% CI</div>
+              <div class="flex items-baseline space-x-2 mt-1">
+                <span id="fc-2030-pt" class="text-xl font-bold font-mono text-emerald-400">2,410</span>
+                <span id="fc-2030-ci" class="text-xs font-mono text-slate-400">[1,850 – 2,970]</span>
+              </div>
+              <p id="fc-break-note" class="text-[11px] text-amber-300 mt-1.5 leading-snug"></p>
+            </div>
+
+            <div class="p-3 rounded bg-slate-900/80 border border-slate-800 space-y-1">
+              <div class="text-[10px] font-bold text-slate-300 uppercase">15-Pair Pearson Correlation Highlights (Fisher's z)</div>
+              <div id="container-corr-highlights" class="space-y-1 text-[11px] text-slate-300"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Feature 5: AI Model Training, Temporal Validation, Calibration & 2025 Partial Cohort Bounding -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <div class="lg:col-span-2 glass-card p-4 space-y-4">
+          <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2 border-b border-slate-800 pb-3">
+            <div>
+              <div class="flex items-center space-x-2">
+                <h3 class="font-bold text-sm text-slate-100">AI Model Temporal Validation (2021–2023 Train &rarr; 2024–2025 Test) &amp; Calibration</h3>
+                <span class="text-[10px] px-2 py-0.5 rounded bg-emerald-950 text-emerald-300 border border-emerald-800 font-mono">Objective 9 • UC-38</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-0.5">Strict out-of-time validation, class-specific AUROC/AUPRC, and 10-bin reliability calibration</p>
+            </div>
+            <select id="select-validation-model" class="bg-slate-900 border border-slate-700 rounded px-2.5 py-1.5 text-xs text-slate-100 font-semibold">
+              <option value="catboost_calibrated" selected>CatBoost (Isotonic Calibrated)</option>
+              <option value="lightgbm">LightGBM (Platt Scaled)</option>
+              <option value="rsf_survival">Random Survival Forest + CoxPH</option>
+              <option value="multinomial_lr">Multinomial Logistic (Baseline)</option>
+            </select>
+          </div>
+
+          <div class="grid grid-cols-2 sm:grid-cols-5 gap-2.5 text-center text-xs">
+            <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Macro AUROC</div>
+              <div id="val-macro-auroc" class="text-lg font-bold font-mono text-emerald-400">0.914</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Temporal AUROC</div>
+              <div id="val-temp-auroc" class="text-lg font-bold font-mono text-sky-400">0.898</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Macro AUPRC</div>
+              <div id="val-macro-auprc" class="text-lg font-bold font-mono text-cyan-300">0.842</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Brier Score</div>
+              <div id="val-brier" class="text-lg font-bold font-mono text-amber-300">0.048</div>
+            </div>
+            <div class="bg-slate-900/80 p-2.5 rounded border border-slate-800">
+              <div class="text-[10px] text-slate-400 uppercase">Calib Error (ECE)</div>
+              <div id="val-ece" class="text-lg font-bold font-mono text-emerald-300">0.014</div>
+            </div>
+          </div>
+
+          <div class="grid grid-cols-1 md:grid-cols-2 gap-4 items-center">
+            <div>
+              <div class="text-xs font-bold text-slate-200 mb-1">10-Bin Reliability Calibration Curve</div>
+              <div class="w-full h-48">
+                <canvas id="chart-calibration-curve" class="w-full h-full"></canvas>
+              </div>
+            </div>
+            <div class="overflow-x-auto">
+              <table class="w-full text-left text-[11px]">
+                <thead class="bg-slate-900 text-slate-400 uppercase text-[10px]">
+                  <tr>
+                    <th class="p-2">Outcome Class</th>
+                    <th class="p-2">AUROC</th>
+                    <th class="p-2">AUPRC</th>
+                    <th class="p-2">Sens/Spec</th>
+                  </tr>
+                </thead>
+                <tbody id="table-validation-classes" class="divide-y divide-slate-800"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <!-- 2025 Partial Cohort (23,412 Pending Patients) Bounding Engine (UC-06 / Limitation D3) -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="border-b border-slate-800 pb-2">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-slate-100">2025 Partial Cohort Bounding</h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-amber-950 text-amber-300 border border-amber-800 font-mono">23,412 Pending</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Resolves Thesis Limitation D3/S7: projects final 2025 &delta;, &lambda;, and &phi; as 23,412 ongoing patients complete therapy</p>
+          </div>
+
+          <div class="space-y-3 text-xs">
+            <div>
+              <div class="flex justify-between mb-1">
+                <span class="text-slate-300">Assumed TSR Among 23,412 Pending (%)</span>
+                <span id="val-bound-slider-label" class="font-mono font-bold text-sky-400">90.66%</span>
+              </div>
+              <input id="slider-bound-2025" type="range" min="75" max="96" step="0.2" value="90.66" class="w-full">
+            </div>
+
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="bg-slate-900 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400">Raw Partial &delta; (2025)</div>
+                <div class="text-base font-bold font-mono text-amber-400">0.5844</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400">Bounded Final &delta; (2025)</div>
+                <div id="bound-final-delta" class="text-base font-bold font-mono text-emerald-400">0.9066</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400">Projected Final Cured</div>
+                <div id="bound-final-cured" class="text-base font-bold font-mono text-sky-400">64,489</div>
+              </div>
+              <div class="bg-slate-900 p-2.5 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400">Bounded Final &phi; (Relapse)</div>
+                <div id="bound-final-phi" class="text-base font-bold font-mono text-cyan-300">0.0575</div>
+              </div>
+            </div>
+
+            <div class="p-3 rounded bg-slate-900/90 border border-slate-800 space-y-1.5 text-[11px]">
+              <div class="font-bold text-slate-200 uppercase text-[10px]">Sensitivity Scenarios (23,412 Pending):</div>
+              <div class="flex justify-between text-slate-300">
+                <span>Worst-Case Bound (80% TSR):</span>
+                <span class="font-mono text-amber-400">&delta; = 0.8712 | &phi; = 0.0602</span>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Expected AI Bound (90.66% WHO-OA):</span>
+                <span class="font-mono text-emerald-400">&delta; = 0.9066 | &phi; = 0.0575</span>
+              </div>
+              <div class="flex justify-between text-slate-300">
+                <span>Best-Case Bound (94% TSR):</span>
+                <span class="font-mono text-sky-400">&delta; = 0.9176 | &phi; = 0.0568</span>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     </section>
@@ -1156,8 +1431,8 @@
   </main>
 
   <!-- Scripts -->
-  <script src="js/math_engine_client.js?v=2.1"></script>
-  <script src="js/charts.js?v=2.1"></script>
-  <script src="js/app.js?v=2.1"></script>
+  <script src="js/math_engine_client.js?v=3.0"></script>
+  <script src="js/charts.js?v=3.0"></script>
+  <script src="js/app.js?v=3.0"></script>
 </body>
 </html>

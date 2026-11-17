@@ -16,6 +16,9 @@ from core.markov_engine import MarkovEngine
 from core.risk_engine import PatientRiskEngine
 from core.resource_engine import ResourceOptimizationEngine
 from core.care_gap_engine import CareGapEngine
+from core.forecast_engine import ForecastEngine
+from core.validation_engine import ModelValidationEngine
+from core.synthetic_engine import SyntheticCohortEngine
 
 class TestBeyondTheCureEngines(unittest.TestCase):
     def setUp(self):
@@ -24,6 +27,9 @@ class TestBeyondTheCureEngines(unittest.TestCase):
         self.risk = PatientRiskEngine()
         self.resource = ResourceOptimizationEngine()
         self.care_gap = CareGapEngine()
+        self.forecast = ForecastEngine()
+        self.validation = ModelValidationEngine()
+        self.synthetic = SyntheticCohortEngine()
 
     def test_r0_calculation(self):
         # 2024: beta=0.7881, gamma=0.9815, mu_i=0.4658, mu=0.0150 -> denom = 1.4623 -> R0 = 0.5389 ~ 0.5445
@@ -130,6 +136,55 @@ class TestBeyondTheCureEngines(unittest.TestCase):
         })
         self.assertIn("Low", low_risk["risk_tier"])
         self.assertLess(low_risk["dropoff_probability_pct"], 5.0)
+
+    def test_feature2_and_3_dice_counterfactuals_and_survival(self):
+        pt = {
+            "age": 65,
+            "bmi": 14.5,
+            "hiv_positive": False,
+            "diabetes": True,
+            "tobacco_or_alcohol": True,
+            "dbt_unlinked": True,
+            "distance_to_center_km": 15,
+            "treatment_delay_days": 28,
+            "adherence_pct": 75.0,
+            "consecutive_missed_days": 16,
+            "month2_sputum_status": "positive"
+        }
+        res = self.risk.predict_patient_risk(pt)
+        self.assertIn("dice_counterfactuals", res)
+        self.assertIn("survival_trajectory", res)
+
+        dice = res["dice_counterfactuals"]
+        self.assertGreater(dice["total_success_gain_pct"], 10.0)
+        self.assertGreater(len(dice["modifiable_levers"]), 3)
+
+        surv = res["survival_trajectory"]
+        self.assertEqual(len(surv["months"]), 7)
+        self.assertEqual(surv["days_to_60d_ltfu_threshold"], 44)
+        self.assertIn("RED", surv["interruption_alert_code"])
+
+    def test_feature4_forecasting_and_structural_break(self):
+        fc = self.forecast.forecast_indicator("relapses")
+        self.assertEqual(len(fc["years"]), 10)
+        self.assertGreater(fc["metrics"]["piecewise_r_squared"], fc["metrics"]["ols_r_squared"])
+        corr = self.forecast.get_correlation_matrix()
+        self.assertEqual(len(corr["variables"]), 6)
+
+    def test_feature5_validation_and_2025_partial_cohort_bounding(self):
+        rep = self.validation.get_validation_report("catboost_calibrated")
+        self.assertGreater(rep["selected_model"]["macro_auroc"], 0.90)
+        self.assertEqual(len(rep["selected_model"]["calibration_bins"]), 10)
+
+        bound = self.validation.bound_2025_partial_cohort(90.66)
+        self.assertEqual(bound["pending_on_treatment_2025"], 23412)
+        self.assertGreater(bound["bounded_final_delta_2025"], 0.88)
+
+    def test_feature6_marginal_calibrated_synthetic_generator(self):
+        syn = self.synthetic.generate_synthetic_cohort(sample_size=50, seed_offset=100)
+        self.assertEqual(syn["sample_size_generated"], 50)
+        self.assertEqual(len(syn["synthetic_records"]), 50)
+        self.assertLess(syn["mean_marginal_deviation_pct"], 5.0)
 
 if __name__ == "__main__":
     unittest.main()
