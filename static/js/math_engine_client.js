@@ -318,6 +318,200 @@ window.MathEngine = {
       },
       shap_attributions: shap.sort((a, b) => (Math.abs(b.impact_death) + Math.abs(b.impact_ltfu)) - (Math.abs(a.impact_death) + Math.abs(a.impact_ltfu)))
     };
+  },
+
+  // Objective 3 Client-Side Fallback: O/E Anomaly Detector across 31 Districts
+  detectProgramAnomalies: function(districts) {
+    if (!districts || districts.length === 0) return { summary: {}, district_anomalies: [] };
+    const results = [];
+    let crit = 0, warn = 0, under = 0, bench = 0;
+
+    districts.forEach(d => {
+      const pop = Number(d.pop || 1500000);
+      const obsNotif = Number(d.notifications || 1800);
+      const obsTsr = Number(d.tsr || 90.0);
+      const obsMort = Number(d.mortality_rate || 5.5);
+      const hivPct = Number(d.hiv_pct || 2.2);
+      const dmPct = Number(d.dm_pct || 15.0);
+      const cbnaatCov = Number(d.cbnaat_coverage || 83.0);
+
+      let expMort = 4.65 + 0.58 * (hivPct - 2.0) + 0.04 * (dmPct - 15.0) - 0.045 * (cbnaatCov - 83.0);
+      expMort = Math.max(3.8, Math.min(7.2, expMort));
+      const oeMort = obsMort / expMort;
+      const mortZ = (obsMort - expMort) / 0.42;
+
+      let expTsr = 90.8 + 0.14 * (cbnaatCov - 83.0) - 0.85 * (hivPct - 2.0);
+      expTsr = Math.max(86.0, Math.min(94.5, expTsr));
+      const tsrGap = obsTsr - expTsr;
+
+      const obsNotifRate = (obsNotif / pop) * 100000.0;
+      const zone = d.zone || "South";
+      const zoneBase = (zone === "North" || zone === "Central") ? 105.0 : (zone === "South" ? 98.0 : 82.0);
+      const expNotifRate = zoneBase + 0.65 * (cbnaatCov - 83.0) + 4.5 * (hivPct - 2.0);
+      const oeNotif = obsNotifRate / Math.max(50.0, expNotifRate);
+
+      const rawDist = Math.sqrt((mortZ ** 2) + ((tsrGap / 1.1) ** 2) + (((oeNotif - 1.0) / 0.18) ** 2));
+      const anomalyScore = Number(Math.min(0.99, 1.0 - Math.exp(-0.45 * rawDist)).toFixed(3));
+
+      let status = "NORMAL_EXPECTED";
+      let discType = "Consistent with Epidemiological Baseline";
+      let aiDiag = `Observed metrics align with expected model bounds (Mortality O/E=${oeMort.toFixed(2)}, TSR=${obsTsr}%).`;
+      let action = "Maintain standard NTEP surveillance and expand household contact TPT (3HP).";
+
+      if (oeMort >= 1.10 || (mortZ >= 1.25 && tsrGap <= -0.8)) {
+        status = "CRITICAL_ANOMALY";
+        discType = "Excess Mortality & Care-Cascade Leak";
+        aiDiag = `Observed mortality (${obsMort}/100k) exceeds model expectation (${expMort.toFixed(2)}/100k, O/E=${oeMort.toFixed(2)}). Driven by delayed CBNAAT linkage (${cbnaatCov}%).`;
+        action = "Deploy emergency clinical audit team; mandate upfront Truenat/CBNAAT and inpatient nutritional stabilization.";
+        crit++;
+      } else if (tsrGap <= -1.0 || oeMort >= 1.05) {
+        status = "WARNING_DISCREPANCY";
+        discType = "Sub-Optimal TSR / LTFU Drift";
+        aiDiag = `Observed TSR (${obsTsr}%) trails expected benchmark (${expTsr.toFixed(1)}% by ${Math.abs(tsrGap).toFixed(1)}%).`;
+        action = "Activate 99DOTS missed-dose survival alerts and audit TU-level pre-treatment address records.";
+        warn++;
+      } else if (oeNotif <= 0.85) {
+        status = "UNDER_NOTIFICATION_GAP";
+        discType = "Hidden Unnotified Reservoir (Low O/E Notification)";
+        aiDiag = `Notification rate (${obsNotifRate.toFixed(1)}/100k) is ${((1.0 - oeNotif) * 100).toFixed(1)}% below expected burden (${expNotifRate.toFixed(1)}/100k).`;
+        action = "Intensify Active Case Finding (ACF mobile X-ray vans) and enforce private pharmacy Schedule-H1 Nikshay reporting.";
+        under++;
+      } else if (oeMort <= 0.90 && obsTsr >= 92.0) {
+        status = "OPTIMAL_BENCHMARK";
+        discType = "Positive Deviance Outperformer";
+        aiDiag = `Mortality (${obsMort}/100k) is ${((1.0 - oeMort) * 100).toFixed(1)}% below expectation with ${obsTsr}% TSR.`;
+        action = "Document district best practices as a reference workflow for high-burden northern districts.";
+        bench++;
+      }
+
+      results.push({
+        district_id: d.id,
+        district_name: d.name,
+        zone: zone,
+        observed_mortality: Number(obsMort.toFixed(2)),
+        expected_mortality: Number(expMort.toFixed(2)),
+        oe_mortality_ratio: Number(oeMort.toFixed(3)),
+        mortality_z_score: Number(mortZ.toFixed(2)),
+        observed_tsr: Number(obsTsr.toFixed(1)),
+        expected_tsr: Number(expTsr.toFixed(1)),
+        tsr_gap: Number(tsrGap.toFixed(2)),
+        observed_notif_per_100k: Number(obsNotifRate.toFixed(1)),
+        expected_notif_per_100k: Number(expNotifRate.toFixed(1)),
+        oe_notification_ratio: Number(oeNotif.toFixed(3)),
+        isolation_anomaly_score: anomalyScore,
+        anomaly_status: status,
+        discrepancy_type: discType,
+        ai_diagnosis: aiDiag,
+        recommended_action: action
+      });
+    });
+
+    const rank = s => s === "CRITICAL_ANOMALY" ? 0 : s === "WARNING_DISCREPANCY" ? 1 : s === "UNDER_NOTIFICATION_GAP" ? 2 : s === "OPTIMAL_BENCHMARK" ? 3 : 4;
+    results.sort((a, b) => rank(a.anomaly_status) - rank(b.anomaly_status) || b.isolation_anomaly_score - a.isolation_anomaly_score);
+
+    return {
+      summary: {
+        total_districts_audited: results.length,
+        critical_anomalies_count: crit,
+        warning_discrepancies_count: warn,
+        under_notification_gaps_count: under,
+        optimal_benchmarks_count: bench
+      },
+      district_anomalies: results
+    };
+  },
+
+  getPretreatmentBarriers: function() {
+    return {
+      total_5yr_real_untreated: 6918,
+      total_5yr_pretreatment_deaths: 2709,
+      average_untreated_cfr_pct: 39.16,
+      wrongly_diagnosed_excluded_total: 846,
+      barrier_categories: [
+        {
+          id: "incorrect_address",
+          barrier: "Untraceable — Incorrect / Incomplete Address",
+          five_year_total: 1478,
+          annual_range: "258–332 cases/yr",
+          share_of_traceable_barriers_pct: 43.2,
+          ai_intervention: "Mandatory Aadhaar/ABHA OTP mobile verification & geo-tagged home pin at diagnostic registration (DMC/CBNAAT)."
+        },
+        {
+          id: "treatment_refusal",
+          barrier: "Treatment Refusal & Social Stigma",
+          five_year_total: 949,
+          annual_range: "151–233 cases/yr",
+          share_of_traceable_barriers_pct: 27.8,
+          ai_intervention: "Immediate deployment of TB Champion peer-survivor counsellor & clinical pharmacist within 24 hours of refusal."
+        },
+        {
+          id: "migrated",
+          barrier: "Untraceable — Out-Migration / Seasonal Labor",
+          five_year_total: 519,
+          annual_range: "73–136 cases/yr",
+          share_of_traceable_barriers_pct: 15.2,
+          ai_intervention: "Automated cross-district/inter-state Nikshay transfer token & portable 30-day FDC buffer kit."
+        },
+        {
+          id: "not_on_treatment",
+          barrier: "Not on Treatment (2025 Diagnostic-to-Initiation Lag)",
+          five_year_total: 315,
+          annual_range: "315 cases (2025)",
+          share_of_traceable_barriers_pct: 13.8,
+          ai_intervention: "Same-day starter FDC pack dispensed directly at diagnostic laboratory upon positive CBNAAT/Truenat result."
+        }
+      ]
+    };
+  },
+
+  predictPretreatmentDropoff: function(profile) {
+    const addr = profile.address_verified !== false;
+    const phone = profile.phone_verified !== false;
+    const migrant = Boolean(profile.is_migrant_worker);
+    const stigma = Boolean(profile.stigma_or_refusal_history);
+    const priv = String(profile.sector || "public").toLowerCase() === "private";
+    const delay = Number(profile.diagnostic_delay_days || 5);
+
+    let logit = -3.79;
+    const scores = {
+      "Untraceable — Incorrect / Unverified Address": 0.1,
+      "Treatment Refusal / Stigma": 0.1,
+      "Untraceable — Migrant Mobility": 0.1,
+      "Diagnostic-to-Initiation Referral Lag": 0.1
+    };
+
+    if (!addr) { logit += 1.95; scores["Untraceable — Incorrect / Unverified Address"] += 0.65; }
+    if (!phone) { logit += 1.40; scores["Untraceable — Incorrect / Unverified Address"] += 0.45; }
+    if (migrant) { logit += 1.65; scores["Untraceable — Migrant Mobility"] += 0.70; }
+    if (stigma) { logit += 1.85; scores["Treatment Refusal / Stigma"] += 0.75; }
+    if (priv) { logit += 0.85; scores["Diagnostic-to-Initiation Referral Lag"] += 0.40; }
+    if (delay > 14) { logit += 0.65; scores["Diagnostic-to-Initiation Referral Lag"] += 0.35; }
+
+    const prob = 1.0 / (1.0 + Math.exp(-logit));
+    const deathProb = prob * 0.4859;
+    const primaryBarrier = Object.entries(scores).sort((a, b) => b[1] - a[1])[0][0];
+
+    let tier = "Low Drop-Off Risk";
+    let protocol = "STANDARD LINKAGE: Routine Nikshay registration and DOTS initiation.";
+    if (prob >= 0.25) {
+      tier = "Critical Drop-Off Risk";
+      protocol = "IMMEDIATE SAME-DAY STARTER FDC: Dispense 7-day starter pack at lab before patient leaves + GPS home pin + TB Champion peer escort.";
+    } else if (prob >= 0.10) {
+      tier = "High Drop-Off Risk";
+      protocol = "URGENT 24-HOUR LINKAGE: Verify Aadhaar/mobile OTP at registration + assign ASHA home visit within 24 hours.";
+    } else if (prob >= 0.04) {
+      tier = "Moderate Drop-Off Risk";
+      protocol = "ENHANCED TRACING: Confirm secondary family contact phone number + schedule 48-hour STS tele-confirmation.";
+    }
+
+    return {
+      dropoff_probability_pct: Number((prob * 100).toFixed(1)),
+      untreated_mortality_if_dropped_pct: 48.59,
+      joint_preventable_death_risk_pct: Number((deathProb * 100).toFixed(2)),
+      risk_tier: tier,
+      primary_predicted_barrier: primaryBarrier,
+      prescribed_linkage_protocol: protocol
+    };
   }
 };
 

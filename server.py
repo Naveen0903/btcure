@@ -74,6 +74,12 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, directory=os.path.join(BASE_DIR, "static"), **kwargs)
 
+    def end_headers(self):
+        self.send_header("Cache-Control", "no-store, no-cache, must-revalidate, max-age=0")
+        self.send_header("Pragma", "no-cache")
+        self.send_header("Expires", "0")
+        super().end_headers()
+
     def _set_headers(self, status: int = 200, content_type: str = "application/json"):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
@@ -125,11 +131,20 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
             plateau = care_gap_engine.analyze_mortality_plateau()
             reservoir = care_gap_engine.estimate_unnotified_reservoir()
             cascade = care_gap_engine.get_care_cascade_funnel()
+            barriers = care_gap_engine.analyze_pretreatment_barriers()
+            anomalies = care_gap_engine.detect_program_anomalies()
             self.wfile.write(json.dumps({
                 "mortality_plateau": plateau,
                 "unnotified_reservoir": reservoir,
-                "care_cascade": cascade
+                "care_cascade": cascade,
+                "pretreatment_barriers": barriers,
+                "program_anomalies": anomalies
             }).encode("utf-8"))
+            return
+
+        elif path == "/api/care-gaps/anomalies":
+            self._set_headers()
+            self.wfile.write(json.dumps(care_gap_engine.detect_program_anomalies()).encode("utf-8"))
             return
 
         elif path == "/api/care-cascade":
@@ -195,6 +210,13 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
         elif path == "/api/pharmacist/evaluate":
             patient = body.get("patient", body)
             res = pharmacist_engine.get_pharmacist_summary(patient)
+            self._set_headers()
+            self.wfile.write(json.dumps(res).encode("utf-8"))
+            return
+
+        elif path == "/api/care-gaps/predict-dropoff":
+            profile = body.get("profile", body)
+            res = care_gap_engine.predict_pretreatment_dropoff_risk(profile)
             self._set_headers()
             self.wfile.write(json.dumps(res).encode("utf-8"))
             return

@@ -322,6 +322,106 @@ window.Charts = {
 
     html += `</div>`;
     container.innerHTML = html;
+  },
+
+  // 6. AI Expected-vs-Observed (O/E) Control & Anomaly Chart (Objective 3)
+  renderOEAnomalyChart: function(canvasId, anomalies) {
+    const canvas = document.getElementById(canvasId);
+    if (!canvas || !anomalies || anomalies.length === 0) return;
+    const { ctx, width, height } = this._setupCanvas(canvas);
+
+    ctx.clearRect(0, 0, width, height);
+    const padLeft = 55, padRight = 25, padTop = 30, padBottom = 40;
+    const chartW = width - padLeft - padRight;
+    const chartH = height - padTop - padBottom;
+
+    const minVal = 3.8, maxVal = 7.6;
+    const toX = val => padLeft + ((val - minVal) / (maxVal - minVal)) * chartW;
+    const toY = val => padTop + chartH - ((val - minVal) / (maxVal - minVal)) * chartH;
+
+    // Grid
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.12)";
+    ctx.fillStyle = "#94a3b8";
+    ctx.font = "10px monospace";
+    for (let v = 4.0; v <= 7.5; v += 0.7) {
+      const y = toY(v);
+      ctx.beginPath();
+      ctx.moveTo(padLeft, y);
+      ctx.lineTo(width - padRight, y);
+      ctx.stroke();
+      ctx.textAlign = "right";
+      ctx.fillText(v.toFixed(1), padLeft - 6, y + 3);
+
+      const x = toX(v);
+      ctx.textAlign = "center";
+      ctx.fillText(v.toFixed(1), x, height - padBottom + 16);
+    }
+
+    // Axis titles
+    ctx.fillStyle = "#64748b";
+    ctx.font = "10px sans-serif";
+    ctx.textAlign = "center";
+    ctx.fillText("AI Model Expected Mortality (/100k)", padLeft + chartW / 2, height - 6);
+
+    // Draw O/E = 1.0 Parity Line
+    ctx.strokeStyle = "rgba(148, 163, 184, 0.45)";
+    ctx.setLineDash([4, 4]);
+    ctx.beginPath();
+    ctx.moveTo(toX(minVal), toY(minVal));
+    ctx.lineTo(toX(maxVal), toY(maxVal));
+    ctx.stroke();
+
+    // Draw Upper Anomaly Threshold Line (O/E = 1.10)
+    ctx.strokeStyle = "rgba(239, 68, 68, 0.35)";
+    ctx.beginPath();
+    ctx.moveTo(toX(minVal), toY(minVal * 1.10));
+    ctx.lineTo(toX(maxVal / 1.10), toY(maxVal));
+    ctx.stroke();
+    ctx.setLineDash([]);
+
+    // Plot each of the 31 districts
+    anomalies.forEach(d => {
+      const x = toX(d.expected_mortality);
+      const y = toY(d.observed_mortality);
+      let color = "#38bdf8";
+      if (d.anomaly_status === "CRITICAL_ANOMALY") color = "#ef4444";
+      else if (d.anomaly_status === "WARNING_DISCREPANCY") color = "#f97316";
+      else if (d.anomaly_status === "UNDER_NOTIFICATION_GAP") color = "#eab308";
+      else if (d.anomaly_status === "OPTIMAL_BENCHMARK") color = "#22c55e";
+
+      ctx.fillStyle = color;
+      ctx.beginPath();
+      ctx.arc(x, y, d.anomaly_status === "CRITICAL_ANOMALY" ? 5.5 : 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Label notable outliers
+      if (d.anomaly_status === "CRITICAL_ANOMALY" || d.anomaly_status === "OPTIMAL_BENCHMARK") {
+        ctx.fillStyle = "#e2e8f0";
+        ctx.font = "9px sans-serif";
+        ctx.textAlign = "left";
+        ctx.fillText(d.district_name.split(" ")[0], x + 7, y + 3);
+      }
+    });
+
+    // Legend
+    const leg = [
+      { label: "Critical (O/E>=1.10)", color: "#ef4444" },
+      { label: "Warning", color: "#f97316" },
+      { label: "Under-Notif", color: "#eab308" },
+      { label: "Benchmark", color: "#22c55e" }
+    ];
+    let lx = padLeft;
+    ctx.font = "10px sans-serif";
+    leg.forEach(item => {
+      ctx.fillStyle = item.color;
+      ctx.beginPath();
+      ctx.arc(lx + 4, 14, 4, 0, Math.PI * 2);
+      ctx.fill();
+      ctx.fillStyle = "#cbd5e1";
+      ctx.textAlign = "left";
+      ctx.fillText(item.label, lx + 11, 17);
+      lx += ctx.measureText(item.label).width + 24;
+    });
   }
 };
 

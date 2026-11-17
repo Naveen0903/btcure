@@ -9,7 +9,7 @@
   <!-- FontAwesome -->
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
   <!-- Custom Styles -->
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=2.1">
 </head>
 <body class="bg-slate-950 text-slate-100 antialiased selection:bg-sky-500 selection:text-white">
 
@@ -62,6 +62,10 @@
         <button id="nav-batch" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
           <i class="fa-solid fa-users"></i>
           <span>Batch Triage</span>
+        </button>
+        <button id="nav-care-gaps" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
+          <i class="fa-solid fa-magnifying-glass-chart"></i>
+          <span>AI Care-Gap & O/E</span>
         </button>
         <button id="nav-districts" class="nav-btn px-3 py-2 rounded-md font-medium border-b-2 text-slate-400 border-transparent hover:text-slate-200 flex items-center space-x-1.5 whitespace-nowrap">
           <i class="fa-solid fa-map-location-dot"></i>
@@ -677,6 +681,184 @@
     </section>
 
     <!-- ========================================== -->
+    <!-- VIEW: AI CARE-GAP & O/E ANOMALY DETECTOR (OBJECTIVE 3) -->
+    <!-- ========================================== -->
+    <section id="view-care-gaps" class="tab-view hidden space-y-6">
+      <!-- Top Summary KPIs -->
+      <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div class="glass-card p-4">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Critical & Warning O/E Anomalies</div>
+          <div id="cg-stat-anomalies" class="metric-value text-2xl font-bold text-red-400 mt-1">11 Districts</div>
+          <div class="text-xs text-slate-400 mt-1">Empirical Bayes + Isolation Anomaly Detector</div>
+        </div>
+
+        <div class="glass-card p-4">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Under-Notification Reservoir Gaps</div>
+          <div id="cg-stat-undernotif" class="metric-value text-2xl font-bold text-amber-400 mt-1">4 Districts</div>
+          <div class="text-xs text-slate-400 mt-1">Observed notifications &lt; 85% of expected</div>
+        </div>
+
+        <div class="glass-card p-4">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">5-Yr Real Untreated Cohort (1 - &gamma;)</div>
+          <div id="cg-stat-untreated" class="metric-value text-2xl font-bold text-sky-400 mt-1">6,918</div>
+          <div class="text-xs text-slate-400 mt-1">Excludes 846 wrongly-diagnosed non-TB cases</div>
+        </div>
+
+        <div class="glass-card p-4">
+          <div class="text-[11px] font-semibold text-slate-400 uppercase tracking-wider">Preventable Pre-Tx Deaths (&mu;ᵢ)</div>
+          <div id="cg-stat-pretx-deaths" class="metric-value text-2xl font-bold text-rose-400 mt-1">2,709</div>
+          <div class="text-xs text-slate-400 mt-1">39.16% mean untreated CFR (48.59% in 2025)</div>
+        </div>
+      </div>
+
+      <!-- Main Dual Analytical Grid -->
+      <div class="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        <!-- Left 2 Columns: O/E Anomaly Scatter + Pre-Treatment Barrier Breakdown -->
+        <div class="lg:col-span-2 space-y-6">
+          <div class="glass-card p-4">
+            <div class="flex flex-wrap justify-between items-center mb-3 gap-2">
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">AI Expected-vs-Observed (O/E) Mortality Parity & Anomaly Control Chart</h3>
+                <p class="text-xs text-slate-400">Empirical Bayes model conditioned on district HIV%, Diabetes%, CBNAAT coverage, and population density</p>
+              </div>
+              <span class="text-[11px] font-mono px-2 py-0.5 rounded bg-red-950/60 border border-red-800 text-red-300">Upper Threshold: O/E &ge; 1.10</span>
+            </div>
+            <div class="w-full h-64">
+              <canvas id="chart-oe-anomalies" class="w-full h-full"></canvas>
+            </div>
+          </div>
+
+          <!-- Pre-Treatment Barrier Deconstruction (Thesis Exact 4 Modes) -->
+          <div class="glass-card p-4 space-y-3">
+            <div class="flex justify-between items-center">
+              <div>
+                <h3 class="font-bold text-sm text-slate-100">Pre-Treatment Linkage Gap (1 - &gamma;) Barrier Deconstruction (2021–2025)</h3>
+                <p class="text-xs text-slate-400">Deconstructing the 1,027–1,677 annual notified patients who fail to initiate DOTS (where &mu;ᵢ = 34.95%–48.59%)</p>
+              </div>
+              <span class="text-xs font-mono text-emerald-400">846 Non-TB Excluded</span>
+            </div>
+            <div id="container-pretreatment-barriers" class="grid grid-cols-1 sm:grid-cols-2 gap-3 text-xs">
+              <!-- Populated dynamically -->
+            </div>
+          </div>
+        </div>
+
+        <!-- Right Column: Cost-Sensitive AI Pre-Treatment Drop-Off Predictor -->
+        <div class="glass-card p-4 space-y-4">
+          <div class="border-b border-slate-800 pb-2">
+            <div class="flex items-center justify-between">
+              <h3 class="font-bold text-sm text-slate-100">Pre-Treatment Drop-Off AI Scorer</h3>
+              <span class="text-[10px] px-2 py-0.5 rounded bg-sky-950 text-sky-400 border border-sky-800 font-mono">Objective 3</span>
+            </div>
+            <p class="text-xs text-slate-400 mt-0.5">Predicts probability of pre-initiation loss (I &rarr; D pathway) at diagnostic registration</p>
+          </div>
+
+          <div class="space-y-2.5 text-xs">
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="cg-input-addr" type="checkbox" checked class="rounded bg-slate-900 border-slate-700 text-sky-500">
+              <span class="text-slate-200">Physical Address Verified (Aadhaar / Pin)</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="cg-input-phone" type="checkbox" checked class="rounded bg-slate-900 border-slate-700 text-sky-500">
+              <span class="text-slate-200">Mobile Number OTP Verified</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="cg-input-migrant" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-amber-500">
+              <span class="text-slate-200">Seasonal / Interstate Migrant Worker</span>
+            </label>
+            <label class="flex items-center space-x-2 cursor-pointer">
+              <input id="cg-input-stigma" type="checkbox" class="rounded bg-slate-900 border-slate-700 text-red-500">
+              <span class="text-slate-200">Expressed Treatment Hesitancy / Stigma</span>
+            </label>
+
+            <div class="grid grid-cols-2 gap-2 pt-2 border-t border-slate-800">
+              <div>
+                <label class="text-slate-400 block mb-1">Diagnosis Sector</label>
+                <select id="cg-input-sector" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 text-slate-100">
+                  <option value="public">Public (DMC/CBNAAT)</option>
+                  <option value="private">Private Clinic/Lab</option>
+                </select>
+              </div>
+              <div>
+                <label class="text-slate-400 block mb-1">Lab-to-Reg Lag (Days)</label>
+                <input id="cg-input-delay" type="number" value="5" min="0" max="60" class="w-full bg-slate-900 border border-slate-700 rounded px-2 py-1.5 font-mono text-slate-100">
+              </div>
+            </div>
+
+            <div class="flex gap-1.5 pt-1">
+              <button id="btn-cg-preset-high" class="flex-1 py-1 text-[10px] bg-red-950/60 border border-red-800 rounded text-red-300 font-semibold">Unverified Migrant</button>
+              <button id="btn-cg-preset-refusal" class="flex-1 py-1 text-[10px] bg-amber-950/60 border border-amber-800 rounded text-amber-300 font-semibold">Stigma / Private</button>
+              <button id="btn-cg-preset-safe" class="flex-1 py-1 text-[10px] bg-emerald-950/60 border border-emerald-800 rounded text-emerald-300 font-semibold">Verified Public</button>
+            </div>
+          </div>
+
+          <!-- Output Prediction Box -->
+          <div class="p-3 bg-slate-900/90 rounded-lg border border-slate-800 space-y-2.5 text-xs">
+            <div class="flex justify-between items-center">
+              <span class="text-slate-400 uppercase text-[10px]">Pre-Tx Drop-Off Risk</span>
+              <span id="cg-pred-tier" class="px-2 py-0.5 rounded text-[10px] font-bold badge-low">Low Drop-Off Risk</span>
+            </div>
+            <div class="grid grid-cols-2 gap-2 text-center">
+              <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400">P(Drop-Off)</div>
+                <div id="cg-pred-prob" class="text-lg font-bold font-mono text-sky-400">2.2%</div>
+              </div>
+              <div class="bg-slate-950 p-2 rounded border border-slate-800">
+                <div class="text-[10px] text-slate-400">P(Untreated Death)</div>
+                <div id="cg-pred-death" class="text-lg font-bold font-mono text-red-400">1.07%</div>
+              </div>
+            </div>
+            <div>
+              <div class="text-[10px] text-slate-400 uppercase">Dominant Predicted Barrier:</div>
+              <div id="cg-pred-barrier" class="font-semibold text-amber-300 mt-0.5">Diagnostic-to-Initiation Referral Lag</div>
+            </div>
+            <div class="bg-sky-950/40 border border-sky-800/60 rounded p-2">
+              <div class="text-[10px] font-bold text-sky-300 uppercase">Prescribed Tracing Action:</div>
+              <p id="cg-pred-protocol" class="text-[11px] text-slate-200 mt-0.5 leading-snug">STANDARD LINKAGE: Routine Nikshay registration and DOTS initiation.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- 31-District Expected-vs-Observed (O/E) Discrepancy Audit Table -->
+      <div class="glass-card p-4 space-y-3">
+        <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-3">
+          <div>
+            <h3 class="font-bold text-sm text-slate-100">31-District Expected-vs-Observed (O/E) Program Discrepancy Audit</h3>
+            <p class="text-xs text-slate-400">Automated isolation of excess mortality, TSR drift, and private/community under-notification gaps</p>
+          </div>
+          <div class="flex flex-wrap gap-1.5 text-xs">
+            <button data-filter="ALL" class="cg-filter-btn px-2.5 py-1 rounded bg-sky-600 text-white font-semibold">All (31)</button>
+            <button data-filter="CRITICAL_ANOMALY" class="cg-filter-btn px-2.5 py-1 rounded bg-slate-800 text-red-300 hover:bg-slate-700">Critical Anomalies</button>
+            <button data-filter="WARNING_DISCREPANCY" class="cg-filter-btn px-2.5 py-1 rounded bg-slate-800 text-amber-300 hover:bg-slate-700">TSR / LTFU Drift</button>
+            <button data-filter="UNDER_NOTIFICATION_GAP" class="cg-filter-btn px-2.5 py-1 rounded bg-slate-800 text-yellow-300 hover:bg-slate-700">Under-Notification</button>
+            <button data-filter="OPTIMAL_BENCHMARK" class="cg-filter-btn px-2.5 py-1 rounded bg-slate-800 text-emerald-300 hover:bg-slate-700">Benchmarks</button>
+          </div>
+        </div>
+
+        <div class="overflow-x-auto">
+          <table class="w-full text-left text-xs">
+            <thead class="bg-slate-900/90 text-slate-400 uppercase text-[10px] border-b border-slate-800">
+              <tr>
+                <th class="p-2.5">District</th>
+                <th class="p-2.5">Obs vs Exp Mortality</th>
+                <th class="p-2.5">Mortality O/E (Z)</th>
+                <th class="p-2.5">Obs vs Exp TSR</th>
+                <th class="p-2.5">Notif O/E</th>
+                <th class="p-2.5">Anomaly Score</th>
+                <th class="p-2.5">Status</th>
+                <th class="p-2.5">AI Root-Cause & Prescribed Action</th>
+              </tr>
+            </thead>
+            <tbody id="table-cg-anomalies" class="divide-y divide-slate-800">
+              <!-- Populated dynamically -->
+            </tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ========================================== -->
     <!-- VIEW 4: 31-DISTRICT SURVEILLANCE & MAP -->
     <!-- ========================================== -->
     <section id="view-districts" class="tab-view hidden space-y-6">
@@ -974,8 +1156,8 @@
   </main>
 
   <!-- Scripts -->
-  <script src="js/math_engine_client.js"></script>
-  <script src="js/charts.js"></script>
-  <script src="js/app.js"></script>
+  <script src="js/math_engine_client.js?v=2.1"></script>
+  <script src="js/charts.js?v=2.1"></script>
+  <script src="js/app.js?v=2.1"></script>
 </body>
 </html>

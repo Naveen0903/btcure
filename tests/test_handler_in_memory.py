@@ -135,6 +135,28 @@ class TestHandlerInMemory(unittest.TestCase):
         self.assertIn("mortality_plateau", body)
         self.assertIn("unnotified_reservoir", body)
         self.assertIn("care_cascade", body)
+        self.assertIn("pretreatment_barriers", body)
+        self.assertIn("program_anomalies", body)
+        self.assertEqual(body["program_anomalies"]["summary"]["total_districts_audited"], 31)
+
+    def test_care_gaps_anomalies_and_dropoff(self):
+        status, anom = self._execute_request("GET", "/api/care-gaps/anomalies")
+        self.assertIn("200", status)
+        self.assertEqual(len(anom["district_anomalies"]), 31)
+
+        status, pred = self._execute_request("POST", "/api/care-gaps/predict-dropoff", {
+            "profile": {
+                "address_verified": False,
+                "phone_verified": False,
+                "is_migrant_worker": True,
+                "stigma_or_refusal_history": True,
+                "sector": "private",
+                "diagnostic_delay_days": 20
+            }
+        })
+        self.assertIn("200", status)
+        self.assertIn("Critical", pred["risk_tier"])
+        self.assertGreater(pred["dropoff_probability_pct"], 50.0)
 
     def test_pharmacist_evaluate(self):
         patient = {

@@ -102,6 +102,35 @@ class TestBeyondTheCureEngines(unittest.TestCase):
         plateau = self.care_gap.analyze_mortality_plateau()
         self.assertEqual(plateau["plateau_value_pct"], 6.0)
 
+    def test_objective3_oe_anomalies_and_pretreatment_barriers(self):
+        barriers = self.care_gap.analyze_pretreatment_barriers()
+        self.assertEqual(barriers["wrongly_diagnosed_excluded_total"], 846)
+        self.assertEqual(len(barriers["barrier_categories"]), 4)
+        self.assertGreater(barriers["total_5yr_real_untreated"], 6000)
+
+        # Test pre-treatment drop-off AI scorer
+        high_risk = self.care_gap.predict_pretreatment_dropoff_risk({
+            "address_verified": False,
+            "phone_verified": False,
+            "is_migrant_worker": True,
+            "stigma_or_refusal_history": False,
+            "sector": "public",
+            "diagnostic_delay_days": 18
+        })
+        self.assertIn("Critical", high_risk["risk_tier"])
+        self.assertGreater(high_risk["dropoff_probability_pct"], 25.0)
+
+        low_risk = self.care_gap.predict_pretreatment_dropoff_risk({
+            "address_verified": True,
+            "phone_verified": True,
+            "is_migrant_worker": False,
+            "stigma_or_refusal_history": False,
+            "sector": "public",
+            "diagnostic_delay_days": 3
+        })
+        self.assertIn("Low", low_risk["risk_tier"])
+        self.assertLess(low_risk["dropoff_probability_pct"], 5.0)
+
 if __name__ == "__main__":
     unittest.main()
 

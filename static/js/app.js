@@ -16,6 +16,7 @@ window.App = {
     this.setupClinicalWorkbench();
     this.setupPharmacistStudio();
     this.setupBatchTriage();
+    this.setupCareGapsModule();
     this.setupResourceLab();
     this.setupEvaluationForm();
     this.renderOverview();
@@ -38,7 +39,7 @@ window.App = {
   },
 
   setupNavigation: function() {
-    const tabs = ["overview", "digital-twin", "clinical", "pharmacist", "batch", "districts", "resource", "evaluation"];
+    const tabs = ["overview", "digital-twin", "clinical", "pharmacist", "batch", "care-gaps", "districts", "resource", "evaluation"];
     tabs.forEach(tab => {
       const btn = document.getElementById(`nav-${tab}`);
       if (btn) {
@@ -71,6 +72,7 @@ window.App = {
     else if (tab === "clinical") this.runClinicalScoring();
     else if (tab === "pharmacist") this.runPharmacistAnalysis();
     else if (tab === "batch") this.renderBatchView();
+    else if (tab === "care-gaps") this.renderCareGapsView();
     else if (tab === "districts") this.renderDistrictsView();
     else if (tab === "resource") this.runResourceOptimization();
     else if (tab === "evaluation") this.loadEvaluationStats();
@@ -518,6 +520,195 @@ window.App = {
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
+  },
+
+  // Objective 3: AI Care-Gap & Expected-vs-Observed (O/E) Anomaly Module
+  careGapsData: null,
+  activeAnomalyFilter: "ALL",
+
+  setupCareGapsModule: function() {
+    ["cg-input-addr", "cg-input-phone", "cg-input-migrant", "cg-input-stigma", "cg-input-sector", "cg-input-delay"].forEach(id => {
+      document.getElementById(id)?.addEventListener("change", () => this.runPreTreatmentDropOffScorer());
+      document.getElementById(id)?.addEventListener("input", () => this.runPreTreatmentDropOffScorer());
+    });
+
+    document.getElementById("btn-cg-preset-high")?.addEventListener("click", () => {
+      document.getElementById("cg-input-addr").checked = false;
+      document.getElementById("cg-input-phone").checked = false;
+      document.getElementById("cg-input-migrant").checked = true;
+      document.getElementById("cg-input-stigma").checked = false;
+      document.getElementById("cg-input-sector").value = "public";
+      document.getElementById("cg-input-delay").value = 18;
+      this.runPreTreatmentDropOffScorer();
+    });
+
+    document.getElementById("btn-cg-preset-refusal")?.addEventListener("click", () => {
+      document.getElementById("cg-input-addr").checked = true;
+      document.getElementById("cg-input-phone").checked = true;
+      document.getElementById("cg-input-migrant").checked = false;
+      document.getElementById("cg-input-stigma").checked = true;
+      document.getElementById("cg-input-sector").value = "private";
+      document.getElementById("cg-input-delay").value = 22;
+      this.runPreTreatmentDropOffScorer();
+    });
+
+    document.getElementById("btn-cg-preset-safe")?.addEventListener("click", () => {
+      document.getElementById("cg-input-addr").checked = true;
+      document.getElementById("cg-input-phone").checked = true;
+      document.getElementById("cg-input-migrant").checked = false;
+      document.getElementById("cg-input-stigma").checked = false;
+      document.getElementById("cg-input-sector").value = "public";
+      document.getElementById("cg-input-delay").value = 3;
+      this.runPreTreatmentDropOffScorer();
+    });
+
+    document.querySelectorAll(".cg-filter-btn").forEach(btn => {
+      btn.addEventListener("click", (e) => {
+        this.activeAnomalyFilter = e.currentTarget.getAttribute("data-filter") || "ALL";
+        document.querySelectorAll(".cg-filter-btn").forEach(b => {
+          b.classList.remove("bg-sky-600", "text-white", "font-semibold");
+          b.classList.add("bg-slate-800");
+        });
+        e.currentTarget.classList.remove("bg-slate-800");
+        e.currentTarget.classList.add("bg-sky-600", "text-white", "font-semibold");
+        this.renderAnomalyTable();
+      });
+    });
+  },
+
+  renderCareGapsView: async function() {
+    try {
+      const res = await fetch("/api/care-gaps");
+      if (res.ok) {
+        this.careGapsData = await res.json();
+      }
+    } catch (e) {
+      console.warn("Could not fetch care-gaps API, using client fallback:", e);
+    }
+
+    if (!this.careGapsData) {
+      this.careGapsData = {};
+    }
+    if (!this.careGapsData.program_anomalies && this.data && this.data.districts) {
+      this.careGapsData.program_anomalies = MathEngine.detectProgramAnomalies(this.data.districts);
+    }
+    if (!this.careGapsData.pretreatment_barriers) {
+      this.careGapsData.pretreatment_barriers = MathEngine.getPretreatmentBarriers();
+    }
+
+    if (this.careGapsData) {
+      const anom = this.careGapsData.program_anomalies;
+      const barr = this.careGapsData.pretreatment_barriers;
+
+      if (anom && anom.summary) {
+        const critWarn = anom.summary.critical_anomalies_count + anom.summary.warning_discrepancies_count;
+        document.getElementById("cg-stat-anomalies").innerText = `${critWarn} Districts`;
+        document.getElementById("cg-stat-undernotif").innerText = `${anom.summary.under_notification_gaps_count} Districts`;
+        Charts.renderOEAnomalyChart("chart-oe-anomalies", anom.district_anomalies);
+        this.renderAnomalyTable();
+      }
+
+      if (barr) {
+        document.getElementById("cg-stat-untreated").innerText = barr.total_5yr_real_untreated.toLocaleString();
+        document.getElementById("cg-stat-pretx-deaths").innerText = barr.total_5yr_pretreatment_deaths.toLocaleString();
+
+        const bContainer = document.getElementById("container-pretreatment-barriers");
+        if (bContainer && barr.barrier_categories) {
+          bContainer.innerHTML = barr.barrier_categories.map(b => `
+            <div class="p-3 rounded bg-slate-900/80 border border-slate-800 space-y-1.5">
+              <div class="flex justify-between items-start">
+                <span class="font-bold text-slate-200">${b.barrier}</span>
+                <span class="font-mono font-bold text-amber-400">${b.five_year_total.toLocaleString()}</span>
+              </div>
+              <div class="flex justify-between text-[11px] text-slate-400">
+                <span>Annual: ${b.annual_range}</span>
+                <span>Share: ${b.share_of_traceable_barriers_pct}%</span>
+              </div>
+              <div class="w-full bg-slate-800 h-1.5 rounded-full overflow-hidden">
+                <div class="bg-sky-500 h-full rounded-full" style="width: ${b.share_of_traceable_barriers_pct}%"></div>
+              </div>
+              <p class="text-[11px] text-sky-300 leading-snug pt-0.5"><strong>AI Action:</strong> ${b.ai_intervention}</p>
+            </div>
+          `).join("");
+        }
+      }
+    }
+
+    this.runPreTreatmentDropOffScorer();
+  },
+
+  renderAnomalyTable: function() {
+    const tbody = document.getElementById("table-cg-anomalies");
+    if (!tbody || !this.careGapsData || !this.careGapsData.program_anomalies) return;
+
+    const allRows = this.careGapsData.program_anomalies.district_anomalies || [];
+    const filtered = this.activeAnomalyFilter === "ALL"
+      ? allRows
+      : allRows.filter(r => r.anomaly_status === this.activeAnomalyFilter);
+
+    tbody.innerHTML = filtered.map(r => {
+      let badge = "badge-low";
+      let label = "Expected";
+      if (r.anomaly_status === "CRITICAL_ANOMALY") { badge = "badge-critical pulse-critical"; label = "Critical O/E"; }
+      else if (r.anomaly_status === "WARNING_DISCREPANCY") { badge = "badge-high"; label = "TSR Drift"; }
+      else if (r.anomaly_status === "UNDER_NOTIFICATION_GAP") { badge = "badge-moderate"; label = "Under-Notified"; }
+      else if (r.anomaly_status === "OPTIMAL_BENCHMARK") { badge = "badge-low"; label = "Benchmark"; }
+
+      return `
+        <tr class="hover:bg-slate-800/40">
+          <td class="p-2.5 font-semibold text-slate-100">${r.district_name}<div class="text-[10px] text-slate-400">${r.zone} Zone</div></td>
+          <td class="p-2.5 font-mono"><span class="${r.observed_mortality > r.expected_mortality ? 'text-red-400 font-bold' : 'text-emerald-400'}">${r.observed_mortality}</span> <span class="text-slate-500">vs</span> ${r.expected_mortality}</td>
+          <td class="p-2.5 font-mono font-bold ${r.oe_mortality_ratio >= 1.08 ? 'text-red-400' : 'text-slate-300'}">${r.oe_mortality_ratio.toFixed(2)}x <span class="text-[10px] text-slate-400">(${r.mortality_z_score >= 0 ? '+' : ''}${r.mortality_z_score}&sigma;)</span></td>
+          <td class="p-2.5 font-mono"><span class="${r.tsr_gap < -0.8 ? 'text-amber-400 font-bold' : 'text-emerald-400'}">${r.observed_tsr}%</span> <span class="text-slate-500">vs</span> ${r.expected_tsr}%</td>
+          <td class="p-2.5 font-mono ${r.oe_notification_ratio <= 0.85 ? 'text-yellow-300 font-bold' : 'text-slate-300'}">${r.oe_notification_ratio.toFixed(2)}x</td>
+          <td class="p-2.5 font-mono font-bold text-cyan-300">${r.isolation_anomaly_score.toFixed(2)}</td>
+          <td class="p-2.5"><span class="px-2 py-0.5 rounded text-[10px] font-bold ${badge}">${label}</span></td>
+          <td class="p-2.5 text-[11px] text-slate-300 max-w-md"><div class="font-medium text-slate-200">${r.discrepancy_type}</div><div class="text-slate-400">${r.ai_diagnosis}</div><div class="text-sky-300 mt-0.5"><strong>Action:</strong> ${r.recommended_action}</div></td>
+        </tr>
+      `;
+    }).join("");
+  },
+
+  runPreTreatmentDropOffScorer: async function() {
+    const profile = {
+      address_verified: document.getElementById("cg-input-addr")?.checked ?? true,
+      phone_verified: document.getElementById("cg-input-phone")?.checked ?? true,
+      is_migrant_worker: document.getElementById("cg-input-migrant")?.checked ?? false,
+      stigma_or_refusal_history: document.getElementById("cg-input-stigma")?.checked ?? false,
+      sector: document.getElementById("cg-input-sector")?.value || "public",
+      diagnostic_delay_days: parseFloat(document.getElementById("cg-input-delay")?.value || 5)
+    };
+
+    let data = null;
+    try {
+      const res = await fetch("/api/care-gaps/predict-dropoff", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: jsonBody({ profile: profile })
+      });
+      if (res.ok) {
+        data = await res.json();
+      } else {
+        data = MathEngine.predictPretreatmentDropoff(profile);
+      }
+    } catch (e) {
+      data = MathEngine.predictPretreatmentDropoff(profile);
+    }
+
+    if (data) {
+      document.getElementById("cg-pred-prob").innerText = `${data.dropoff_probability_pct}%`;
+      document.getElementById("cg-pred-death").innerText = `${data.joint_preventable_death_risk_pct}%`;
+      document.getElementById("cg-pred-barrier").innerText = data.primary_predicted_barrier;
+      document.getElementById("cg-pred-protocol").innerText = data.prescribed_linkage_protocol;
+
+      const tierEl = document.getElementById("cg-pred-tier");
+      tierEl.innerText = data.risk_tier;
+      tierEl.className = `px-2 py-0.5 rounded text-[10px] font-bold ${
+        data.risk_tier.includes("Critical") ? "badge-critical pulse-critical" :
+        data.risk_tier.includes("High") ? "badge-high" :
+        data.risk_tier.includes("Moderate") ? "badge-moderate" : "badge-low"
+      }`;
+    }
   },
 
   // 4. 31-District Surveillance Module
