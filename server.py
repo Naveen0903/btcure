@@ -10,9 +10,11 @@ import socketserver
 import json
 import os
 import sys
+import base64
+import mimetypes
 import urllib.parse
 from datetime import datetime
-from typing import Dict, Any
+from typing import Dict, Any, Optional
 
 # Ensure local imports work
 sys.path.insert(0, os.path.abspath(os.path.dirname(__file__)))
@@ -27,10 +29,73 @@ from core.forecast_engine import ForecastEngine
 from core.validation_engine import ModelValidationEngine
 from core.synthetic_engine import SyntheticCohortEngine
 
-PORT = 8000
 BASE_DIR = os.path.abspath(os.path.dirname(__file__))
+
+# Load .env file automatically if present
+ENV_FILE = os.path.join(BASE_DIR, ".env")
+if os.path.isfile(ENV_FILE):
+    try:
+        with open(ENV_FILE, "r", encoding="utf-8") as ef:
+            for line in ef:
+                line = line.strip()
+                if not line or line.startswith("#") or "=" not in line:
+                    continue
+                k, v = line.split("=", 1)
+                k = k.strip()
+                v = v.strip().strip('"').strip("'")
+                if k and k not in os.environ:
+                    os.environ[k] = v
+    except Exception:
+        pass
+
+PORT = int(os.environ.get("PORT", 8000))
 DATA_FILE = os.path.join(BASE_DIR, "data", "karnataka_ntep_data.json")
-EVAL_FILE = os.path.join(BASE_DIR, "data", "evaluation_responses.json")
+STATIC_DIR = os.path.join(BASE_DIR, "static")
+
+# Use /tmp on Vercel serverless runtime since /var/task is read-only
+if os.environ.get("VERCEL"):
+    EVAL_FILE = "/tmp/evaluation_responses.json"
+else:
+    EVAL_FILE = os.path.join(BASE_DIR, "data", "evaluation_responses.json")
+
+# Basic Authentication Accounts (Configurable via .env or Vercel Environment Variables)
+DEFAULT_USER = (
+    os.environ.get("AUTH_USERNAME")
+    or os.environ.get("BASIC_AUTH_USER")
+    or os.environ.get("DEMO_USER")
+    or os.environ.get("APP_USER")
+    or "admin"
+)
+DEFAULT_PASS = (
+    os.environ.get("AUTH_PASSWORD")
+    or os.environ.get("BASIC_AUTH_PASS")
+    or os.environ.get("DEMO_PASS")
+    or os.environ.get("APP_PASSWORD")
+    or "ntep2026"
+)
+
+AUTH_ACCOUNTS = {
+    DEFAULT_USER: {
+        "password": DEFAULT_PASS,
+        "display_name": DEFAULT_USER,
+        "role": "State TB Control Board"
+    },
+    "admin": {
+        "password": DEFAULT_PASS,
+        "display_name": "State NTEP Administrator",
+        "role": "State TB Control Board"
+    },
+    "dr.manasa": {
+        "password": os.environ.get("PI_PASSWORD", "beyond2026"),
+        "display_name": "Dr. Mekkanti Manasa Rekha",
+        "role": "Principal Investigator (ABIPER / RGUHS)"
+    },
+    "dto.karnataka": {
+        "password": os.environ.get("DTO_PASSWORD", "endtb2030"),
+        "display_name": "District TB Officer",
+        "role": "Karnataka NTEP Surveillance"
+    }
+}
 
 # Load baseline empirical data
 with open(DATA_FILE, "r") as f:
@@ -86,13 +151,52 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
         self.send_header("Expires", "0")
         super().end_headers()
 
-    def _set_headers(self, status: int = 200, content_type: str = "application/json"):
+    def _set_headers(self, status: int = 200, content_type: str = "application/json", extra_headers: Optional[Dict[str, str]] = None):
         self.send_response(status)
         self.send_header("Content-Type", content_type)
         self.send_header("Access-Control-Allow-Origin", "*")
         self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type, Authorization")
+        if extra_headers:
+            for k, v in extra_headers.items():
+                self.send_header(k, v)
         self.end_headers()
+
+    def _verify_basic_auth(self, username: Optional[str] = None, password: Optional[str] = None) -> Optional[Dict[str, str]]:
+        """
+        Verifies Basic Authentication from either explicit username/password or
+        the HTTP 'Authorization: Basic <base64>' header.
+        """
+        if username is not None and password is not None:
+            acct = AUTH_ACCOUNTS.get(username)
+            if acct and acct["password"] == password:
+                token = base64.b64encode(f"{username}:{password}".encode("utf-8")).decode("utf-8")
+                return {
+                    "username": username,
+                    "display_name": acct["display_name"],
+                    "role": acct["role"],
+                    "token": token
+                }
+            return None
+
+        auth_header = self.headers.get("Authorization", "")
+        if auth_header.startswith("Basic "):
+            b64_part = auth_header[6:].strip()
+            try:
+                decoded = base64.b64decode(b64_part).decode("utf-8")
+                if ":" in decoded:
+                    u, p = decoded.split(":", 1)
+                    acct = AUTH_ACCOUNTS.get(u)
+                    if acct and acct["password"] == p:
+                        return {
+                            "username": u,
+                            "display_name": acct["display_name"],
+                            "role": acct["role"],
+                            "token": b64_part
+                        }
+            except Exception:
+                return None
+        return None
 
     def do_OPTIONS(self):
         self._set_headers(200, "text/plain")
@@ -120,6 +224,22 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
                 "cohort_size": 372863,
                 "timestamp": datetime.now().isoformat()
             }).encode("utf-8"))
+            return
+
+        elif path == "/api/auth/verify":
+            user_info = self._verify_basic_auth()
+            if user_info:
+                self._set_headers(200)
+                self.wfile.write(json.dumps({
+                    "authenticated": True,
+                    "user": user_info
+                }).encode("utf-8"))
+            else:
+                self._set_headers(401)
+                self.wfile.write(json.dumps({
+                    "authenticated": False,
+                    "error": "Invalid or missing Basic Authentication credentials"
+                }).encode("utf-8"))
             return
 
         elif path == "/api/summary":
@@ -200,6 +320,16 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
                     self.wfile.write(f.read())
                 return
 
+        # Serve static files explicitly (compatible with both Vercel Serverless & local HTTPServer)
+        rel_path = "index.html" if path in ["/", ""] else path.lstrip("/")
+        safe_path = os.path.normpath(os.path.join(STATIC_DIR, rel_path))
+        if safe_path.startswith(STATIC_DIR) and os.path.isfile(safe_path):
+            mime_type, _ = mimetypes.guess_type(safe_path)
+            self._set_headers(200, mime_type or "application/octet-stream")
+            with open(safe_path, "rb") as f:
+                self.wfile.write(f.read())
+            return
+
         # Fallback to standard static file server
         super().do_GET()
 
@@ -208,7 +338,25 @@ class BeyondTheCureHandler(http.server.SimpleHTTPRequestHandler):
         path = url_parsed.path
         body = self._read_json_body()
 
-        if path == "/api/simulate/sitrd":
+        if path == "/api/auth/login":
+            u = body.get("username")
+            p = body.get("password")
+            user_info = self._verify_basic_auth(u, p) if (u is not None and p is not None) else self._verify_basic_auth()
+            if user_info:
+                self._set_headers(200)
+                self.wfile.write(json.dumps({
+                    "authenticated": True,
+                    "user": user_info
+                }).encode("utf-8"))
+            else:
+                self._set_headers(401)
+                self.wfile.write(json.dumps({
+                    "authenticated": False,
+                    "error": "Invalid username or password"
+                }).encode("utf-8"))
+            return
+
+        elif path == "/api/simulate/sitrd":
             params = body.get("params", {})
             years = float(body.get("years", 6.0))
             dt = float(body.get("dt", 0.02))

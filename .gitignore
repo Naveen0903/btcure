@@ -1,3 +1,5 @@
 docs
 __pycache__
 .history
+
+.env

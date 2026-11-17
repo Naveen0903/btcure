@@ -1,0 +1,9 @@
+.venv/
+venv/
+__pycache__/
+*.pyc
+.DS_Store
+.history/
+docs/
+tests/
+BEYOND_THE_CURE_Enterprise_Proposal.md

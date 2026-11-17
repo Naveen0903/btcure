@@ -1,18 +1,12 @@
-# BEYOND THE CURE: Python Dependencies
-# Note: The core platform and mathematical engines run with ZERO external dependencies
-# using Python standard library (http.server, math, sqlite3, json, csv).
+# BEYOND THE CURE: Python Dependencies (Vercel Serverless Ready)
+# The platform and all biomathematical/AI engines run on 100% Python Standard Library
+# (math, json, hashlib, urllib, http.server) with ZERO external package overhead.
+# Keeping this file free of heavy C-extensions ensures Vercel Serverless builds in <5s
+# and stays well below Vercel's 250MB bundle limit.
 #
-# The optional libraries below can be installed if you wish to run extended data science,
-# notebook analysis, or high-performance test runners:
-
-# Scientific Computing & Data Analysis (Optional)
-numpy>=1.24.0
-scipy>=1.10.0
-pandas>=2.0.0
-
-# Testing & Quality Assurance (Optional)
-pytest>=7.0.0
-
-# API & Networking Utilities (Optional)
-requests>=2.28.0
-
+# Optional local analysis packages (uncomment only for local offline notebooks):
+# numpy>=1.24.0
+# scipy>=1.10.0
+# pandas>=2.0.0
+# pytest>=7.0.0
+# requests>=2.28.0

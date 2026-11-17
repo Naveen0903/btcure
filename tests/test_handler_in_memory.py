@@ -36,8 +36,11 @@ class MockSocket:
         return self._wfile.getvalue()
 
 class TestHandlerInMemory(unittest.TestCase):
-    def _execute_request(self, method, path, body=None):
+    def _execute_request(self, method, path, body=None, extra_headers=None):
         headers = [f"{method} {path} HTTP/1.1", "Host: localhost"]
+        if extra_headers:
+            for k, v in extra_headers.items():
+                headers.append(f"{k}: {v}")
         body_bytes = b""
         if body is not None:
             body_bytes = json.dumps(body).encode("utf-8")
@@ -246,6 +249,28 @@ class TestHandlerInMemory(unittest.TestCase):
         self.assertIn("200", status)
         self.assertEqual(syn["sample_size_generated"], 25)
         self.assertEqual(len(syn["synthetic_records"]), 25)
+
+    def test_basic_authentication_and_vercel_handler(self):
+        # 1. Valid login (Dr. Manasa Rekha PI account)
+        status, res = self._execute_request("POST", "/api/auth/login", {"username": "dr.manasa", "password": "beyond2026"})
+        self.assertIn("200", status)
+        self.assertTrue(res["authenticated"])
+        self.assertEqual(res["user"]["username"], "dr.manasa")
+        token = res["user"]["token"]
+
+        # 2. Verify with Basic Auth header
+        status, vres = self._execute_request("GET", "/api/auth/verify", extra_headers={"Authorization": f"Basic {token}"})
+        self.assertIn("200", status)
+        self.assertTrue(vres["authenticated"])
+
+        # 3. Invalid login returns 401
+        status, bad = self._execute_request("POST", "/api/auth/login", {"username": "dr.manasa", "password": "wrong"})
+        self.assertIn("401", status)
+        self.assertFalse(bad["authenticated"])
+
+        # 4. Verify Vercel Serverless entrypoint imports cleanly
+        from api.index import handler as vercel_handler
+        self.assertTrue(issubclass(vercel_handler, server.BeyondTheCureHandler))
 
 if __name__ == "__main__":
     unittest.main()
